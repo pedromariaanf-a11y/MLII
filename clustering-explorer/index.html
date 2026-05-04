@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Startup Clustering Explorer</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="header-inner">
+        <div>
+          <p class="eyebrow">Interactive data story</p>
+          <h1>Startup Clustering Explorer</h1>
+          <p class="lead">
+            A visual guide to the VC startup dataset, the existing cluster labels,
+            and the patterns that make each group different.
+          </p>
+        </div>
+        <nav class="top-nav" aria-label="Page sections">
+          <a href="#overview">Overview</a>
+          <a href="#dataset">Dataset</a>
+          <a href="#clustering">Clustering</a>
+          <a href="#visuals">Visuals</a>
+          <a href="#insights">Insights</a>
+          <a href="#explorer">Rows</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section id="overview" class="section overview-section">
+        <div class="section-inner">
+          <div id="loadStatus" class="notice notice-loading">
+            Loading the clustered startup dataset...
+          </div>
+
+          <div id="fallbackLoader" class="fallback-loader hidden">
+            <h2>Load the clustered CSV manually</h2>
+            <p>
+              The browser could not fetch the CSV automatically. Choose
+              <code>clustered_startups_real_values.csv</code> from this project
+              folder to continue locally.
+            </p>
+            <input id="manualCsvInput" type="file" accept=".csv,text/csv" />
+          </div>
+
+          <div class="overview-grid">
+            <div class="story-intro">
+              <p class="eyebrow">What this page explains</p>
+              <h2>From startup rows to recognizable groups</h2>
+              <p>
+                Clustering is a way to let similar startups gather together
+                based on funding behavior. Instead of predicting an outcome, the
+                method asks: which companies look alike when we compare their
+                funding size, funding rounds, stage, and funding mix?
+              </p>
+              <p>
+                The original notebook already created cluster labels. This app
+                uses those labels directly, profiles the groups, and translates
+                the technical outputs into readable observations.
+              </p>
+            </div>
+            <div id="sourceDetails" class="source-panel" aria-live="polite"></div>
+          </div>
+
+          <div id="overviewMetrics" class="metric-grid"></div>
+        </div>
+      </section>
+
+      <section id="dataset" class="section">
+        <div class="section-inner">
+          <div class="section-heading">
+            <p class="eyebrow">Dataset explanation</p>
+            <h2>What is inside the data?</h2>
+            <p>
+              The app inspects column types, missing values, common categories,
+              numeric ranges, and relationships between important funding
+              features.
+            </p>
+          </div>
+
+          <div id="datasetMetrics" class="metric-grid compact"></div>
+
+          <div class="panel-grid two">
+            <article class="chart-panel">
+              <div id="missingCopy" class="chart-copy"></div>
+              <div id="missingChart" class="chart-canvas"></div>
+            </article>
+            <article class="chart-panel">
+              <div id="histogramCopy" class="chart-copy"></div>
+              <label class="control-label" for="numericColumnSelect">Numeric feature</label>
+              <select id="numericColumnSelect" class="select-control"></select>
+              <div id="histogramChart" class="chart-canvas"></div>
+            </article>
+          </div>
+
+          <div class="panel-grid two">
+            <article class="chart-panel">
+              <div id="categoryCopy" class="chart-copy"></div>
+              <label class="control-label" for="categoricalColumnSelect">Categorical feature</label>
+              <select id="categoricalColumnSelect" class="select-control"></select>
+              <div id="categoryChart" class="chart-canvas"></div>
+            </article>
+            <article class="chart-panel">
+              <div id="correlationCopy" class="chart-copy"></div>
+              <div id="correlationHeatmap" class="chart-canvas"></div>
+            </article>
+          </div>
+
+          <article class="table-panel">
+            <div class="table-heading">
+              <div>
+                <h3>Column Map</h3>
+                <p>Names, inferred types, missing values, and example values.</p>
+              </div>
+            </div>
+            <div id="schemaTable" class="table-wrap"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="clustering" class="section section-muted">
+        <div class="section-inner">
+          <div class="section-heading">
+            <p class="eyebrow">Clustering explanation</p>
+            <h2>How the groups were formed</h2>
+            <p>
+              The project notebooks show a K-Means workflow with RobustScaler,
+              PCA for visualization, and four cluster labels. The app uses the
+              exported labels as the source of truth.
+            </p>
+          </div>
+
+          <div id="methodCards" class="metric-grid compact"></div>
+
+          <div class="panel-grid two">
+            <article class="chart-panel">
+              <div id="clusterSizeCopy" class="chart-copy"></div>
+              <div id="clusterSizeChart" class="chart-canvas"></div>
+            </article>
+            <article class="chart-panel">
+              <div id="featureCompareCopy" class="chart-copy"></div>
+              <label class="control-label" for="featureCompareSelect">Compare feature</label>
+              <select id="featureCompareSelect" class="select-control"></select>
+              <div id="featureByClusterChart" class="chart-canvas"></div>
+            </article>
+          </div>
+
+          <div id="clusterProfiles" class="profile-grid"></div>
+
+          <article class="table-panel">
+            <div class="table-heading">
+              <div>
+                <h3>Cluster Comparison Table</h3>
+                <p>Median values for the most interpretable funding features.</p>
+              </div>
+            </div>
+            <div id="clusterComparisonTable" class="table-wrap"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="visuals" class="section">
+        <div class="section-inner">
+          <div class="section-heading">
+            <p class="eyebrow">Cluster visualisations</p>
+            <h2>Seeing the clusters from different angles</h2>
+            <p>
+              The plots below show size, separation, feature intensity, and
+              unusually large funding observations without changing the original
+              data.
+            </p>
+          </div>
+
+          <article class="chart-panel wide">
+            <div id="projectionCopy" class="chart-copy"></div>
+            <div id="projectionChart" class="chart-canvas tall"></div>
+          </article>
+
+          <div class="panel-grid two">
+            <article class="chart-panel">
+              <div id="clusterHeatmapCopy" class="chart-copy"></div>
+              <div id="clusterHeatmap" class="chart-canvas"></div>
+            </article>
+            <article class="chart-panel">
+              <div id="outlierCopy" class="chart-copy"></div>
+              <div id="outlierList" class="outlier-list"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="insights" class="section section-muted">
+        <div class="section-inner">
+          <div class="section-heading">
+            <p class="eyebrow">Curiosities &amp; Insights</p>
+            <h2>Plain-English observations</h2>
+            <p>
+              These notes are generated from the loaded dataset and cluster
+              profiles. They describe patterns, not causal explanations.
+            </p>
+          </div>
+          <div id="insightsGrid" class="insight-grid"></div>
+        </div>
+      </section>
+
+      <section id="explorer" class="section">
+        <div class="section-inner">
+          <div class="section-heading">
+            <p class="eyebrow">Row explorer</p>
+            <h2>Browse a sample of startups</h2>
+            <p>
+              Search by company, market, status, city, country, or cluster to
+              connect the profile-level story back to individual rows.
+            </p>
+          </div>
+
+          <article class="table-panel">
+            <div class="table-toolbar">
+              <input id="tableSearch" class="search-input" type="search" placeholder="Search startups, markets, countries..." />
+              <select id="clusterFilter" class="select-control compact-control" aria-label="Filter by cluster">
+                <option value="all">All clusters</option>
+              </select>
+            </div>
+            <p id="tableStatus" class="table-status"></p>
+            <div id="sampleTable" class="table-wrap"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>
+        Standalone app. Reads project CSV files only at runtime and does not
+        modify existing project files.
+      </p>
+    </footer>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
