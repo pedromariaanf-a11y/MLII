@@ -564,33 +564,40 @@ export function getOutliers(rows, column = "funding_total_usd", limit = 8) {
 }
 
 export function formatNumber(value, digits = 0) {
-  if (!Number.isFinite(value)) return "n/a";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  const requested = Number(digits);
+  const safeMax = Math.max(0, Math.min(20, Number.isFinite(requested) ? Math.floor(requested) : 0));
+  const safeMin = Math.max(0, Math.min(safeMax, Number.isFinite(requested) ? Math.floor(requested) : 0));
   return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: digits,
-    minimumFractionDigits: digits,
-  }).format(value);
+    maximumFractionDigits: safeMax,
+    minimumFractionDigits: safeMin,
+  }).format(num);
 }
 
 export function formatPercent(value, digits = 1) {
-  if (!Number.isFinite(value)) return "n/a";
-  return `${formatNumber(value * 100, digits)}%`;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  return `${formatNumber(num * 100, digits)}%`;
 }
 
 export function formatMoney(value) {
-  if (!Number.isFinite(value)) return "n/a";
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `$${formatNumber(value / 1_000_000_000, 2)}B`;
-  if (abs >= 1_000_000) return `$${formatNumber(value / 1_000_000, 2)}M`;
-  if (abs >= 1_000) return `$${formatNumber(value / 1_000, 1)}K`;
-  return `$${formatNumber(value, 0)}`;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
+  const abs = Math.abs(num);
+  if (abs >= 1_000_000_000) return `$${formatNumber(num / 1_000_000_000, 2)}B`;
+  if (abs >= 1_000_000) return `$${formatNumber(num / 1_000_000, 2)}M`;
+  if (abs >= 1_000) return `$${formatNumber(num / 1_000, 1)}K`;
+  return `$${formatNumber(num, 0)}`;
 }
 
 export function formatCompact(value) {
-  if (!Number.isFinite(value)) return "n/a";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "—";
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(value);
+  }).format(num);
 }
 
 export function prettifyColumn(column) {
