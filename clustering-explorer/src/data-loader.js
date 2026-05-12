@@ -11,6 +11,12 @@ export const DEFAULT_DATASETS = [
     path: "../investments_VC.csv",
     required: false,
   },
+  {
+    id: "cluster0",
+    label: "Cluster 0 subcluster profile",
+    path: "../cluster0_subclustered_explained.csv",
+    required: false,
+  },
 ];
 
 export async function loadDatasets(configs = DEFAULT_DATASETS) {

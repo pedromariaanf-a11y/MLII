@@ -10,12 +10,16 @@ rename, move, delete, or overwrite any existing project file.
 
 - Loads `clustered_startups_real_values.csv` as the primary clustered dataset.
 - Optionally loads `investments_VC.csv` for raw dataset context.
+- Optionally loads `cluster0_subclustered_explained.csv` for the Cluster 0
+  zoom-in analysis.
 - Uses the existing `Cluster` labels directly when they are present.
 - Explains the dataset shape, columns, inferred types, missing values, basic
   numeric distributions, category counts, and correlations.
 - Explains the clustering workflow inferred from the notebooks:
   K-Means, `K=4`, RobustScaler, engineered funding features, and PCA-based
   visualisation.
+- Explains the Cluster 0 subclustering as a complementary K=3 analysis, not as
+  a replacement for the main four-cluster model.
 - Builds interactive cluster visuals:
   cluster sizes, feature comparisons, profile cards, a PCA-style 2D projection,
   a cluster feature heatmap, largest-funding observations, and a searchable row
@@ -28,12 +32,13 @@ The app reads these existing files at runtime:
 
 - `../clustered_startups_real_values.csv`
 - `../investments_VC.csv`
+- `../cluster0_subclustered_explained.csv`
 
 The implementation was informed by these existing read-only project files:
 
 - `../teste.ipynb`
 - `../analise_clustering.ipynb`
-- `../EDA.py`
+- `../cluster0_subclustering_analysis.ipynb`
 
 ## How To Run
 

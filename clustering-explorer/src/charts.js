@@ -1,4 +1,4 @@
-import { formatCompact, formatNumber, prettifyColumn } from "./analysis.js";
+import { formatCompact, formatNumber, formatPercent, prettifyColumn } from "./analysis.js";
 
 export const CLUSTER_COLORS = ["#2f6f68", "#d95f4f", "#3f5f9e", "#c58b2d", "#6f8d3b", "#7a5c99"];
 
@@ -32,7 +32,7 @@ export function renderEmpty(container, message) {
 export function renderBarChart(container, data, options = {}) {
   if (!data?.length) return renderEmpty(container, "No values available for this chart.");
   const width = 720;
-  const height = options.height ?? 300;
+  const height = options.height ?? Math.max(240, data.length * 34 + 80);
   const margin = { top: 18, right: 28, bottom: 46, left: options.left ?? 150 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
@@ -65,10 +65,16 @@ export function renderBarChart(container, data, options = {}) {
         truncate(item.label, 22),
       ),
     );
+    const labelInside = barWidth > innerWidth - 82;
     group.appendChild(
       svgEl(
         "text",
-        { x: Math.min(innerWidth - 2, barWidth + 7), y: y + Math.max(6, barHeight - 6) / 2 + 4, class: "bar-label" },
+        {
+          x: labelInside ? Math.max(12, barWidth - 7) : barWidth + 7,
+          y: y + Math.max(6, barHeight - 6) / 2 + 4,
+          "text-anchor": labelInside ? "end" : "start",
+          class: labelInside ? "bar-label-invert" : "bar-label",
+        },
         options.valueFormatter ? options.valueFormatter(value, item) : formatCompact(value),
       ),
     );
@@ -76,6 +82,65 @@ export function renderBarChart(container, data, options = {}) {
 
   group.appendChild(svgEl("line", { x1: 0, y1: innerHeight + 6, x2: innerWidth, y2: innerHeight + 6, class: "grid-line" }));
   container.replaceChildren(svg);
+}
+
+export function renderStackedBarChart(container, rows, options = {}) {
+  if (!rows?.length) return renderEmpty(container, "No values available for this chart.");
+  const width = 780;
+  const height = options.height ?? Math.max(230, rows.length * 58 + 95);
+  const margin = { top: 22, right: 28, bottom: 62, left: options.left ?? 190 };
+  const innerWidth = width - margin.left - margin.right;
+  const rowHeight = 44;
+  const svg = createSvg(width, height);
+  const group = svgEl("g", { transform: `translate(${margin.left},${margin.top})` });
+  svg.appendChild(group);
+
+  rows.forEach((row, rowIndex) => {
+    const y = rowIndex * rowHeight;
+    const total = row.total ?? row.segments.reduce((sum, segment) => sum + Math.max(0, segment.value ?? 0), 0);
+    group.appendChild(
+      svgEl(
+        "text",
+        { x: -10, y: y + 21, "text-anchor": "end", class: "tick-label" },
+        truncate(row.label, 28),
+      ),
+    );
+    group.appendChild(svgEl("rect", { x: 0, y: y + 5, width: innerWidth, height: 24, rx: 5, fill: "#eef3f1" }));
+
+    let x = 0;
+    for (const segment of row.segments) {
+      const value = Math.max(0, segment.value ?? 0);
+      const segmentWidth = total ? (value / total) * innerWidth : 0;
+      if (segmentWidth > 0) {
+        const rect = svgEl("rect", {
+          x,
+          y: y + 5,
+          width: segmentWidth,
+          height: 24,
+          rx: 5,
+          fill: segment.color,
+        });
+        rect.appendChild(svgEl("title", {}, `${row.label} / ${segment.label}: ${formatPercent(value)}`));
+        group.appendChild(rect);
+        if (segmentWidth > 72) {
+          group.appendChild(
+            svgEl(
+              "text",
+              { x: x + segmentWidth / 2, y: y + 22, "text-anchor": "middle", class: "stack-label" },
+              formatPercent(value, 0),
+            ),
+          );
+        }
+      }
+      x += segmentWidth;
+    }
+  });
+
+  group.appendChild(svgEl("line", { x1: 0, y1: rows.length * rowHeight + 2, x2: innerWidth, y2: rows.length * rowHeight + 2, class: "grid-line" }));
+  const wrapper = document.createElement("div");
+  wrapper.appendChild(svg);
+  wrapper.appendChild(renderLegend(options.legend ?? []));
+  container.replaceChildren(wrapper);
 }
 
 export function renderHistogram(container, bins, options = {}) {

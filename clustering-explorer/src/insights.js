@@ -77,7 +77,7 @@ export function generateInsights({ datasetSummary, rawSummary, clusterSummary, s
     });
   }
 
-  return insights.slice(0, 10);
+  return insights.slice(0, 8);
 }
 
 function ratioInsights(clusterSummary) {

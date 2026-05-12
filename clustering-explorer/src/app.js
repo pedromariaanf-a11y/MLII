@@ -28,6 +28,7 @@ import {
   renderMetricCards,
   renderOutliers,
   renderScatter,
+  renderStackedBarChart,
   renderTable,
 } from "./charts.js";
 import { generateInsights } from "./insights.js";
@@ -71,6 +72,17 @@ function cacheElements() {
     "featureByClusterChart",
     "clusterProfiles",
     "clusterComparisonTable",
+    "cluster0",
+    "cluster0Intro",
+    "cluster0Metrics",
+    "subclusterSizeCopy",
+    "subclusterSizeChart",
+    "subclusterFundingCopy",
+    "subclusterFundingChart",
+    "subclusterCompositionCopy",
+    "subclusterCompositionChart",
+    "subclusterProfiles",
+    "subclusterComparisonTable",
     "projectionCopy",
     "projectionChart",
     "clusterHeatmapCopy",
@@ -78,6 +90,7 @@ function cacheElements() {
     "outlierCopy",
     "outlierList",
     "insightsGrid",
+    "businessGrid",
     "tableSearch",
     "clusterFilter",
     "tableStatus",
@@ -131,6 +144,7 @@ function attachFallbackLoader() {
 function buildAndRender(datasets, loadErrors) {
   const clustered = datasets.clustered;
   const raw = datasets.raw ?? null;
+  const cluster0Dataset = datasets.cluster0 ?? null;
   const datasetSummary = summarizeDataset(clustered);
   const rawSummary = raw ? summarizeDataset(raw) : null;
   const clusterFeatures = chooseClusterFeatures(datasetSummary);
@@ -154,6 +168,7 @@ function buildAndRender(datasets, loadErrors) {
   const correlations = computeCorrelationMatrix(rows, correlationColumns);
   const projection = computePcaProjection(rows, clusterResult.clusterColumn, featureColumns);
   const outliers = getOutliers(rows);
+  const cluster0 = buildCluster0Model(cluster0Dataset, rows.length, clusterSummary);
 
   state.model = {
     datasets,
@@ -169,6 +184,7 @@ function buildAndRender(datasets, loadErrors) {
     outliers,
     featureColumns,
     interpretableFeatures,
+    cluster0,
   };
 
   setStatus(
@@ -184,8 +200,10 @@ function renderAll() {
   renderOverview(model);
   renderDataset(model);
   renderClustering(model);
+  renderCluster0(model);
   renderVisuals(model);
   renderInsights(model);
+  renderBusiness(model);
   renderExplorer(model);
 }
 
@@ -193,6 +211,9 @@ function renderSourceDetails(model) {
   const rawText = model.rawSummary
     ? `${formatNumber(model.rawSummary.rows)} raw rows available for context`
     : "Raw CSV was optional and was not loaded";
+  const cluster0Text = model.cluster0
+    ? `${formatNumber(model.cluster0.rows.length)} Cluster 0 rows with subcluster labels`
+    : "Cluster 0 subcluster file was optional and was not loaded";
   const errors = model.loadErrors?.length
     ? `<p class="source-note">${escapeHtml(model.loadErrors.map((item) => `${item.config.label} did not load`).join("; "))}</p>`
     : "";
@@ -209,8 +230,12 @@ function renderSourceDetails(model) {
         <span>${escapeHtml(rawText)}</span>
       </div>
       <div class="source-item">
-        <strong>Notebook inference</strong>
-        <span>K-Means, RobustScaler, PCA visualization, K=4, existing Cluster labels.</span>
+        <strong>Cluster 0 zoom</strong>
+        <span>${escapeHtml(cluster0Text)}</span>
+      </div>
+      <div class="source-item">
+        <strong>Notebook path</strong>
+        <span>Funding features, RobustScaler, PCA, K-Means with K=4, then Cluster 0 subclustering with K=3.</span>
       </div>
     </div>
     ${errors}
@@ -231,14 +256,16 @@ function renderOverview(model) {
       note: "Information, engineered features, and labels.",
     },
     {
-      label: "Clusters",
+      label: "Main clusters",
       value: formatNumber(model.clusterSummary.clusters.length),
-      note: model.clusterResult.usedExisting ? "Read from the CSV labels." : "Generated only inside this app.",
+      note: model.clusterResult.usedExisting ? "Read from the exported CSV labels." : "Generated only inside this app.",
     },
     {
-      label: "Largest cluster",
-      value: `Cluster ${model.clusterSummary.largest?.cluster ?? "n/a"}`,
-      note: `${formatPercent(model.clusterSummary.largest?.percentage ?? 0)} of rows.`,
+      label: "Cluster 0 subgroups",
+      value: model.cluster0 ? formatNumber(model.cluster0.clusterSummary.clusters.length) : "n/a",
+      note: model.cluster0
+        ? `${formatPercent(model.cluster0.shareOfDataset)} of the clustered data is examined more closely.`
+        : "Subcluster file was not loaded.",
     },
   ]);
 }
@@ -282,11 +309,20 @@ function renderDataset(model) {
     valueFormatter: (value) => formatNumber(value),
   });
 
-  populateSelect(el.numericColumnSelect, summary.numericColumns.filter((column) => !/^cluster$/i.test(column)), prettifyColumn);
+  const numericOptions = preferredColumns(summary.numericColumns, [
+    "funding_rounds",
+    "funding_total_usd",
+    "stage_level",
+    "early_stage_funding",
+    "venture",
+    "debt_financing",
+    "private_equity",
+  ]);
+  populateSelect(el.numericColumnSelect, numericOptions, prettifyColumn);
   el.numericColumnSelect.onchange = () => renderHistogramPanel(model);
   renderHistogramPanel(model);
 
-  const categoricalOptions = summary.categoricalColumns.filter((column) => !["name", "category_list"].includes(column));
+  const categoricalOptions = preferredColumns(summary.categoricalColumns, ["market", "status", "country_code", "city"]);
   populateSelect(el.categoricalColumnSelect, categoricalOptions, prettifyColumn);
   el.categoricalColumnSelect.onchange = () => renderCategoryPanel(model);
   renderCategoryPanel(model);
@@ -322,7 +358,7 @@ function renderHistogramPanel(model) {
   renderChartCopy(
     el.histogramCopy,
     "Numerical Distribution",
-    "This chart shows how rows are spread across the selected numeric feature.",
+    "This chart shows how startups are spread across a selected funding feature.",
     "Each bar is a value range; taller bars mean more startups fall into that range.",
     column ? `${prettifyColumn(column)} is shown with ${formatNumber(histogram(model.rows, column).length)} value ranges.` : "Choose a numeric feature to inspect its distribution.",
   );
@@ -336,7 +372,7 @@ function renderCategoryPanel(model) {
   renderChartCopy(
     el.categoryCopy,
     "Categorical Values",
-    "This chart surfaces the most common labels in a selected categorical column.",
+    "This chart surfaces useful business labels such as market, status, country, or city.",
     "Longer bars mean that value appears in more startup rows.",
     counts.length ? `${counts[0].label} is the most common value for ${prettifyColumn(column)}.` : "Choose a categorical feature to inspect its most common values.",
   );
@@ -374,19 +410,19 @@ function renderClustering(model) {
   const clusterSummary = model.clusterSummary;
   renderMetricCards(el.methodCards, [
     {
-      label: "Method detected",
+      label: "Method",
       value: "K-Means",
-      note: "Inferred from teste.ipynb and EDA.py imports.",
+      note: "The notebook groups similar funding profiles.",
     },
     {
-      label: "Label source",
-      value: model.clusterResult.usedExisting ? "Existing CSV labels" : "Fallback labels",
-      note: model.clusterResult.method,
+      label: "Preparation",
+      value: "Scaler + PCA",
+      note: "RobustScaler reduces outlier impact; PCA makes compact model inputs.",
     },
     {
       label: "Features used",
       value: formatNumber(model.featureColumns.length),
-      note: "Filtered to the engineered clustering features present in the CSV.",
+      note: "Funding totals, rounds, stage, and funding-source ratios.",
     },
   ]);
 
@@ -427,7 +463,7 @@ function renderFeatureCompare(model) {
   const top = [...rows].sort((a, b) => b.value - a.value)[0];
   renderChartCopy(
     el.featureCompareCopy,
-    "Feature Averages by Cluster",
+    "Feature Medians by Cluster",
     "This chart compares cluster medians for a selected real-world funding feature.",
     "Higher bars mean that cluster has a higher median value for the selected feature.",
     feature && top ? `${top.label} has the highest median ${prettifyColumn(feature)}.` : "Choose a feature to compare clusters.",
@@ -435,24 +471,20 @@ function renderFeatureCompare(model) {
   if (!feature) return renderEmpty(el.featureByClusterChart, "No feature selected.");
   renderBarChart(el.featureByClusterChart, rows, {
     left: 110,
-    valueFormatter: (value) => (feature.includes("usd") || ["venture", "debt_financing", "private_equity", "early_stage_funding"].includes(feature) ? formatMoney(value) : formatNumber(value, 2)),
+    valueFormatter: (value) => formatFeatureValue(feature, value),
   });
 }
 
 function renderClusterProfiles(clusterSummary) {
   el.clusterProfiles.innerHTML = clusterSummary.clusters
     .map((cluster, index) => {
-      const top = cluster.distinguishing[0];
       const status = cluster.topCategories.status?.[0]?.label ?? "mixed status";
       const market = cluster.topCategories.market?.[0]?.label ?? "mixed markets";
       return `
         <article class="profile-card">
           <span class="badge" style="color:${CLUSTER_COLORS[index % CLUSTER_COLORS.length]}">Cluster ${escapeHtml(cluster.cluster)}</span>
           <h3>${escapeHtml(cluster.name)}</h3>
-          <p>
-            This cluster appears to be characterized by ${escapeHtml(prettifyColumn(top?.feature ?? "its funding mix"))},
-            which is ${escapeHtml(top?.direction ?? "different")} compared with the overall dataset.
-          </p>
+          <p>${escapeHtml(describeMainCluster(cluster))}</p>
           <div class="profile-stats">
             <span class="profile-stat">${formatNumber(cluster.count)} rows</span>
             <span class="profile-stat">${formatPercent(cluster.percentage)}</span>
@@ -468,18 +500,23 @@ function renderClusterProfiles(clusterSummary) {
 }
 
 function renderClusterComparison(model) {
+  const comparisonFeatures = [
+    "funding_total_usd",
+    "funding_rounds",
+    "early_stage_funding_ratio",
+    "venture_ratio",
+    "debt_financing_ratio",
+    "private_equity_ratio",
+  ].filter((feature) => model.interpretableFeatures.includes(feature));
   const columns = [
     { key: "cluster", label: "Cluster" },
     { key: "count", label: "Rows", format: formatNumber },
     { key: "percentage", label: "Share", format: formatPercent },
-    ...model.interpretableFeatures.slice(0, 7).map((feature) => ({
+    ...comparisonFeatures.map((feature) => ({
       key: feature,
       label: prettifyColumn(feature),
       value: (row) => row[feature],
-      format: (value) =>
-        feature.includes("usd") || ["venture", "debt_financing", "private_equity", "early_stage_funding"].includes(feature)
-          ? formatMoney(value)
-          : formatNumber(value, 2),
+      format: (value) => formatFeatureValue(feature, value),
     })),
   ];
   const rows = model.clusterSummary.clusters.map((cluster) => {
@@ -488,12 +525,166 @@ function renderClusterComparison(model) {
       count: cluster.count,
       percentage: cluster.percentage,
     };
-    for (const feature of model.interpretableFeatures.slice(0, 7)) {
+    for (const feature of comparisonFeatures) {
       row[feature] = cluster.features[feature]?.median;
     }
     return row;
   });
   renderTable(el.clusterComparisonTable, columns, rows);
+}
+
+function buildCluster0Model(dataset, totalRows, mainClusterSummary) {
+  if (!dataset?.rows?.length) return null;
+  const rows = dataset.rows.map((row, index) => ({ ...row, __rowNumber: index + 1 }));
+  const summary = summarizeDataset({ ...dataset, rows });
+  const featureColumns = chooseInterpretableFeatures(summary);
+  const clusterColumn = dataset.headers.includes("SubCluster_Name") ? "SubCluster_Name" : "SubCluster";
+  const clusterSummary = computeClusterSummary(rows, clusterColumn, featureColumns, summary.categoricalColumns);
+  const mainCluster0 = mainClusterSummary.clusters.find((cluster) => String(cluster.cluster) === "0");
+
+  return {
+    dataset,
+    rows,
+    summary,
+    featureColumns,
+    clusterColumn,
+    clusterSummary,
+    shareOfDataset: totalRows ? rows.length / totalRows : mainCluster0?.percentage ?? 0,
+    notebookSilhouette: 0.5011,
+  };
+}
+
+function renderCluster0(model) {
+  if (!model.cluster0) {
+    el.cluster0.classList.add("hidden");
+    return;
+  }
+  el.cluster0.classList.remove("hidden");
+  const cluster0 = model.cluster0;
+  const summary = cluster0.clusterSummary;
+  const largest = summary.largest;
+
+  el.cluster0Intro.textContent =
+    "Verdict: keep it. Cluster 0 is the largest main group, so the subclustering is useful as a complementary explanation. It should not replace the four-cluster model.";
+
+  renderMetricCards(el.cluster0Metrics, [
+    {
+      label: "Cluster 0 rows",
+      value: formatNumber(cluster0.rows.length),
+      note: `${formatPercent(cluster0.shareOfDataset)} of the clustered startups.`,
+    },
+    {
+      label: "Subclusters",
+      value: formatNumber(summary.clusters.length),
+      note: "K=3 was chosen because it gives three easy-to-explain profiles.",
+    },
+    {
+      label: "Silhouette",
+      value: formatNumber(cluster0.notebookSilhouette, 2),
+      note: "Notebook sample score: acceptable for a simple explanatory split.",
+    },
+  ]);
+
+  renderChartCopy(
+    el.subclusterSizeCopy,
+    "Cluster 0 Subcluster Sizes",
+    "This chart shows how Cluster 0 splits into three simpler groups.",
+    "Longer bars mean more startups inside that subcluster.",
+    largest
+      ? `${largest.cluster} is the biggest subcluster with ${formatPercent(largest.percentage)} of Cluster 0.`
+      : "No subclusters were available.",
+  );
+  renderBarChart(
+    el.subclusterSizeChart,
+    summary.clusters.map((cluster, index) => ({
+      label: cluster.cluster,
+      value: cluster.count,
+      color: CLUSTER_COLORS[index % CLUSTER_COLORS.length],
+    })),
+    { left: 190, valueFormatter: formatNumber },
+  );
+
+  renderChartCopy(
+    el.subclusterFundingCopy,
+    "Median Funding by Subcluster",
+    "This keeps the comparison simple by using median total funding instead of averages.",
+    "Higher bars mean the typical startup in that subcluster has raised more money.",
+    describeSubclusterFundingTakeaway(summary),
+  );
+  renderBarChart(
+    el.subclusterFundingChart,
+    summary.clusters.map((cluster, index) => ({
+      label: cluster.cluster,
+      value: cluster.features.funding_total_usd?.median ?? 0,
+      color: CLUSTER_COLORS[index % CLUSTER_COLORS.length],
+    })),
+    { left: 190, valueFormatter: formatMoney },
+  );
+
+  const composition = buildFundingComposition(summary);
+  renderChartCopy(
+    el.subclusterCompositionCopy,
+    "Funding Mix Inside Cluster 0",
+    "This shows which funding source dominates each internal group.",
+    "Each bar is one subcluster; the colored parts show average funding-source share.",
+    "The split is easy to explain: seed/early-stage companies, small VC-backed companies, and early-stage companies with more rounds.",
+  );
+  renderStackedBarChart(el.subclusterCompositionChart, composition.rows, {
+    left: 190,
+    legend: composition.legend,
+  });
+
+  renderSubclusterProfiles(summary);
+  renderSubclusterComparison(cluster0);
+}
+
+function renderSubclusterProfiles(clusterSummary) {
+  el.subclusterProfiles.innerHTML = clusterSummary.clusters
+    .map((cluster, index) => `
+      <article class="profile-card">
+        <span class="badge" style="color:${CLUSTER_COLORS[index % CLUSTER_COLORS.length]}">${escapeHtml(cluster.cluster)}</span>
+        <h3>${escapeHtml(cluster.cluster)}</h3>
+        <p>${escapeHtml(describeSubcluster(cluster))}</p>
+        <div class="profile-stats">
+          <span class="profile-stat">${formatNumber(cluster.count)} rows</span>
+          <span class="profile-stat">${formatPercent(cluster.percentage)}</span>
+          <span class="profile-stat">${formatMoney(cluster.features.funding_total_usd?.median)} median funding</span>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderSubclusterComparison(cluster0) {
+  const features = [
+    "funding_total_usd",
+    "funding_rounds",
+    "early_stage_funding_ratio",
+    "venture_ratio",
+    "debt_financing_ratio",
+    "private_equity_ratio",
+  ].filter((feature) => cluster0.featureColumns.includes(feature));
+  const columns = [
+    { key: "subcluster", label: "Subcluster" },
+    { key: "count", label: "Rows", format: formatNumber },
+    { key: "percentage", label: "Share", format: formatPercent },
+    ...features.map((feature) => ({
+      key: feature,
+      label: prettifyColumn(feature),
+      value: (row) => row[feature],
+      format: (value) => formatFeatureValue(feature, value),
+    })),
+  ];
+  const rows = cluster0.clusterSummary.clusters.map((cluster) => {
+    const row = {
+      subcluster: cluster.cluster,
+      count: cluster.count,
+      percentage: cluster.percentage,
+    };
+    for (const feature of features) row[feature] = cluster.features[feature]?.median;
+    return row;
+  });
+  renderTable(el.subclusterComparisonTable, columns, rows);
 }
 
 function renderVisuals(model) {
@@ -546,6 +737,43 @@ function renderInsights(model) {
           <div class="insight-kicker">${escapeHtml(insight.kicker)}</div>
           <h3>${escapeHtml(insight.title)}</h3>
           <p>${escapeHtml(insight.body)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderBusiness(model) {
+  const cluster0 = model.clusterSummary.clusters.find((cluster) => String(cluster.cluster) === "0");
+  const cluster0Subgroups = model.cluster0?.clusterSummary.clusters.length ?? 0;
+
+  const cards = [
+    {
+      title: "What the model is useful for",
+      body: "It segments startups by funding behavior. It does not predict success, but it helps explain which companies look financially similar.",
+    },
+    {
+      title: "Main portfolio reading",
+      body: `Cluster 0 is the broad early-stage base (${formatPercent(cluster0?.percentage ?? 0)}). Cluster 3 is the clearer VC growth group, Cluster 1 mixes venture with debt, and Cluster 2 is the private-equity-heavy group.`,
+    },
+    {
+      title: "Why Cluster 0 matters",
+      body: cluster0Subgroups
+        ? `Because Cluster 0 is very large, the K=3 subclustering makes the story more useful: seed-stage, small VC-backed, and multi-round early-stage startups.`
+        : "Cluster 0 is large enough that it deserves a separate explanation, but the subcluster file was not loaded.",
+    },
+    {
+      title: "How to present it",
+      body: "Start with the four main clusters, then use Cluster 0 as a zoom-in example. That keeps the analysis simple while showing deeper thinking.",
+    },
+  ];
+
+  el.businessGrid.innerHTML = cards
+    .map(
+      (card) => `
+        <article class="business-card">
+          <h3>${escapeHtml(card.title)}</h3>
+          <p>${escapeHtml(card.body)}</p>
         </article>
       `,
     )
@@ -617,6 +845,81 @@ function buildClusterHeatmap(model) {
     }
   }
   return { rows, columns, cells };
+}
+
+function buildFundingComposition(clusterSummary) {
+  const segments = [
+    { feature: "early_stage_funding_ratio", label: "Early-stage", color: CLUSTER_COLORS[0] },
+    { feature: "venture_ratio", label: "Venture", color: CLUSTER_COLORS[2] },
+    { feature: "debt_financing_ratio", label: "Debt", color: CLUSTER_COLORS[1] },
+    { feature: "private_equity_ratio", label: "Private equity", color: CLUSTER_COLORS[3] },
+  ];
+  return {
+    legend: segments.map((segment) => ({ label: segment.label, color: segment.color })),
+    rows: clusterSummary.clusters.map((cluster) => ({
+      label: cluster.cluster,
+      segments: segments.map((segment) => ({
+        label: segment.label,
+        value: cluster.features[segment.feature]?.mean ?? 0,
+        color: segment.color,
+      })),
+    })),
+  };
+}
+
+function describeMainCluster(cluster) {
+  const id = String(cluster.cluster);
+  if (id === "0") {
+    return "The largest and most early-stage-heavy group: low median funding, usually one round, and mostly early-stage funding.";
+  }
+  if (id === "1") {
+    return "A mixed financing group where debt financing is much more relevant, usually alongside venture funding.";
+  }
+  if (id === "2") {
+    return "A small, capital-intensive group dominated by private equity and much higher median funding.";
+  }
+  if (id === "3") {
+    return "The clearer venture-backed growth group, with higher stage level and venture funding dominating the funding mix.";
+  }
+  return `This group is mainly separated by ${prettifyColumn(cluster.distinguishing[0]?.feature ?? "its funding mix")}.`;
+}
+
+function describeSubcluster(cluster) {
+  const name = String(cluster.cluster).toLowerCase();
+  if (name.includes("venture")) {
+    return "VC-backed companies that are still smaller or earlier than the main venture-growth cluster.";
+  }
+  if (name.includes("multi")) {
+    return "Early-stage companies with more rounds, suggesting more traction than the simplest seed-stage profile.";
+  }
+  if (name.includes("seed")) {
+    return "Small, usually one-round companies dominated by seed, angel, or grant-style funding.";
+  }
+  return `This subcluster is mainly separated by ${prettifyColumn(cluster.distinguishing[0]?.feature ?? "its funding mix")}.`;
+}
+
+function describeSubclusterFundingTakeaway(clusterSummary) {
+  const ranked = [...clusterSummary.clusters].sort(
+    (a, b) => (b.features.funding_total_usd?.median ?? 0) - (a.features.funding_total_usd?.median ?? 0),
+  );
+  const top = ranked[0];
+  const bottom = ranked[ranked.length - 1];
+  if (!top || !bottom) return "No funding comparison was available.";
+  return `${top.cluster} has the highest median funding (${formatMoney(top.features.funding_total_usd?.median)}), while ${bottom.cluster} is lowest (${formatMoney(bottom.features.funding_total_usd?.median)}).`;
+}
+
+function preferredColumns(available, preferred) {
+  const chosen = preferred.filter((column) => available.includes(column));
+  if (chosen.length) return chosen;
+  return available.filter((column) => !/^cluster$/i.test(column)).slice(0, 8);
+}
+
+function formatFeatureValue(feature, value) {
+  if (["funding_total_usd", "early_stage_funding", "venture", "debt_financing", "private_equity"].includes(feature)) {
+    return formatMoney(value);
+  }
+  if (feature.endsWith("_ratio")) return formatPercent(value);
+  return formatNumber(value, 1);
 }
 
 function populateSelect(select, values, labelFormatter = (value) => value) {

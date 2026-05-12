@@ -112,6 +112,7 @@ code {
 
 .section {
   padding: 4.5rem 0;
+  scroll-margin-top: 7rem;
 }
 
 .overview-section {
@@ -416,7 +417,9 @@ tr:last-child td {
 }
 
 .profile-grid,
-.insight-grid {
+.insight-grid,
+.process-grid,
+.business-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1rem;
@@ -424,19 +427,44 @@ tr:last-child td {
 }
 
 .profile-card,
-.insight-card {
+.insight-card,
+.process-card,
+.business-card {
   padding: 1rem;
 }
 
 .profile-card h3,
-.insight-card h3 {
+.insight-card h3,
+.process-card h3,
+.business-card h3 {
   margin: 0.25rem 0 0.5rem;
   font-size: 1.05rem;
 }
 
 .profile-card p,
-.insight-card p {
+.insight-card p,
+.process-card p,
+.business-card p {
   color: var(--muted);
+}
+
+.process-card,
+.business-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.step-number {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--teal);
+  color: #ffffff;
+  font-weight: 850;
 }
 
 .profile-stats,
@@ -557,6 +585,18 @@ tr:last-child td {
   font-weight: 750;
 }
 
+.bar-label-invert {
+  fill: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stack-label {
+  fill: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .grid-line {
   stroke: #e5ebe8;
   stroke-width: 1;
@@ -576,7 +616,9 @@ tr:last-child td {
   .metric-grid,
   .metric-grid.compact,
   .profile-grid,
-  .insight-grid {
+  .insight-grid,
+  .process-grid,
+  .business-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -594,7 +636,9 @@ tr:last-child td {
   .metric-grid,
   .metric-grid.compact,
   .profile-grid,
-  .insight-grid {
+  .insight-grid,
+  .process-grid,
+  .business-grid {
     grid-template-columns: 1fr;
   }
 

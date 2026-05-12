@@ -1,10 +1,10 @@
 import { isMissing, toDisplayValue, toNumber } from "./data-loader.js";
 
 export const CLUSTER_NAME_HINTS = {
-  0: "Early-stage / lower-funding profile",
+  0: "Broad early-stage group",
   1: "Debt-financed startups",
-  2: "Private equity / capital-intensive profile",
-  3: "Venture-backed growth profile",
+  2: "Private equity profile",
+  3: "Venture-backed growth group",
 };
 
 // Feature names inferred from teste.ipynb; this app reuses the concept only.
@@ -35,6 +35,28 @@ export const INTERPRETABLE_FEATURES = [
   "debt_financing_ratio",
   "private_equity_ratio",
 ];
+
+const COLUMN_LABELS = {
+  funding_total_usd: "Total funding",
+  funding_rounds: "Funding rounds",
+  early_stage_funding: "Early-stage funding",
+  venture: "Venture funding",
+  debt_financing: "Debt financing",
+  private_equity: "Private equity",
+  stage_level: "Stage level",
+  early_stage_funding_ratio: "Early-stage share",
+  venture_ratio: "Venture share",
+  debt_financing_ratio: "Debt share",
+  private_equity_ratio: "Private equity share",
+  log_funding_total_usd: "Log total funding",
+  log_funding_rounds: "Log funding rounds",
+  log_early_stage_funding: "Log early-stage funding",
+  log_venture: "Log venture funding",
+  log_debt_financing: "Log debt financing",
+  log_private_equity: "Log private equity",
+  country_code: "Country",
+  SubCluster_Name: "Subcluster",
+};
 
 export function summarizeDataset(dataset, options = {}) {
   const rows = dataset.rows ?? [];
@@ -565,7 +587,7 @@ export function getOutliers(rows, column = "funding_total_usd", limit = 8) {
 
 export function formatNumber(value, digits = 0) {
   const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
+  if (!Number.isFinite(num)) return "n/a";
   const requested = Number(digits);
   const safeMax = Math.max(0, Math.min(20, Number.isFinite(requested) ? Math.floor(requested) : 0));
   const safeMin = Math.max(0, Math.min(safeMax, Number.isFinite(requested) ? Math.floor(requested) : 0));
@@ -577,13 +599,13 @@ export function formatNumber(value, digits = 0) {
 
 export function formatPercent(value, digits = 1) {
   const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
+  if (!Number.isFinite(num)) return "n/a";
   return `${formatNumber(num * 100, digits)}%`;
 }
 
 export function formatMoney(value) {
   const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
+  if (!Number.isFinite(num)) return "n/a";
   const abs = Math.abs(num);
   if (abs >= 1_000_000_000) return `$${formatNumber(num / 1_000_000_000, 2)}B`;
   if (abs >= 1_000_000) return `$${formatNumber(num / 1_000_000, 2)}M`;
@@ -593,7 +615,7 @@ export function formatMoney(value) {
 
 export function formatCompact(value) {
   const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
+  if (!Number.isFinite(num)) return "n/a";
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 1,
@@ -601,8 +623,10 @@ export function formatCompact(value) {
 }
 
 export function prettifyColumn(column) {
+  if (COLUMN_LABELS[column]) return COLUMN_LABELS[column];
   return String(column)
     .replace(/^log_/, "log ")
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .replace(/\bUsd\b/g, "USD");
 }
