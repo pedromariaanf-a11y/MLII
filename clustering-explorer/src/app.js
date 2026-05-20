@@ -7,6 +7,8 @@ import {
   computeFeatureSeparation,
   computePcaProjection,
   ensureClusters,
+  featureUnit,
+  featureUnitLabel,
   formatMoney,
   formatNumber,
   formatPercent,
@@ -320,7 +322,7 @@ function renderDataset(model) {
     "debt_financing",
     "private_equity",
   ]);
-  populateSelect(el.numericColumnSelect, numericOptions, prettifyColumn);
+  populateSelect(el.numericColumnSelect, numericOptions, labelWithUnit);
   el.numericColumnSelect.onchange = () => renderHistogramPanel(model);
   renderHistogramPanel(model);
 
@@ -357,12 +359,13 @@ function renderDataset(model) {
 
 function renderHistogramPanel(model) {
   const column = el.numericColumnSelect.value;
+  const unitHint = featureUnitLabel(column);
   renderChartCopy(
     el.histogramCopy,
-    "Numerical Distribution",
+    `Numerical Distribution ${unitHint}`,
     "This chart shows how startups are spread across a selected funding feature.",
     "Each bar is a value range; taller bars mean more startups fall into that range.",
-    column ? `${prettifyColumn(column)} is shown with ${formatNumber(histogram(model.rows, column).length)} value ranges.` : "Choose a numeric feature to inspect its distribution.",
+    column ? `${prettifyColumn(column)} ${unitHint} is shown with ${formatNumber(histogram(model.rows, column).length)} value ranges.` : "Choose a numeric feature to inspect its distribution.",
   );
   if (!column) return renderEmpty(el.histogramChart, "No numeric feature selected.");
   renderHistogram(el.histogramChart, histogram(model.rows, column), { column, color: "#3f5f9e" });
@@ -447,7 +450,7 @@ function renderClustering(model) {
     { valueFormatter: formatNumber },
   );
 
-  populateSelect(el.featureCompareSelect, model.interpretableFeatures, prettifyColumn);
+  populateGroupedSelect(el.featureCompareSelect, model.interpretableFeatures);
   el.featureCompareSelect.onchange = () => renderFeatureCompare(model);
   renderFeatureCompare(model);
 
@@ -457,18 +460,25 @@ function renderClustering(model) {
 
 function renderFeatureCompare(model) {
   const feature = el.featureCompareSelect.value;
+  const unitHint = featureUnitLabel(feature);
+  const unitType = featureUnit(feature);
   const rows = model.clusterSummary.clusters.map((cluster, index) => ({
     label: `Cluster ${cluster.cluster}`,
     value: cluster.features[feature]?.median ?? 0,
     color: CLUSTER_COLORS[index % CLUSTER_COLORS.length],
   }));
   const top = [...rows].sort((a, b) => b.value - a.value)[0];
+  const howText = unitType === "USD"
+    ? "Longer bars mean higher median dollar amount for that cluster."
+    : unitType === "%"
+      ? "Longer bars mean a higher share (0 to 1 scale, where 1 = 100%)."
+      : "Longer bars mean a higher median value for that cluster.";
   renderChartCopy(
     el.featureCompareCopy,
-    "Feature Medians by Cluster",
+    `Feature Medians by Cluster ${unitHint}`,
     "This chart compares cluster medians for a selected real-world funding feature.",
-    "Higher bars mean that cluster has a higher median value for the selected feature.",
-    feature && top ? `${top.label} has the highest median ${prettifyColumn(feature)}.` : "Choose a feature to compare clusters.",
+    howText,
+    feature && top ? `${top.label} has the highest median ${prettifyColumn(feature)} ${unitHint}.` : "Choose a feature to compare clusters.",
   );
   if (!feature) return renderEmpty(el.featureByClusterChart, "No feature selected.");
   renderBarChart(el.featureByClusterChart, rows, {
@@ -928,6 +938,32 @@ function populateSelect(select, values, labelFormatter = (value) => value) {
   select.innerHTML = values
     .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(labelFormatter(value))}</option>`)
     .join("");
+}
+
+function populateGroupedSelect(select, values) {
+  const groups = { "Dollar amounts (USD)": [], "Shares (%)": [], "Other": [] };
+  for (const col of values) {
+    const unit = featureUnit(col);
+    if (unit === "USD") groups["Dollar amounts (USD)"].push(col);
+    else if (unit === "%") groups["Shares (%)"].push(col);
+    else groups["Other"].push(col);
+  }
+  let html = "";
+  for (const [groupLabel, cols] of Object.entries(groups)) {
+    if (!cols.length) continue;
+    html += `<optgroup label="${escapeHtml(groupLabel)}">`;
+    for (const col of cols) {
+      html += `<option value="${escapeHtml(col)}">${escapeHtml(prettifyColumn(col))}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+  select.innerHTML = html;
+}
+
+function labelWithUnit(column) {
+  const label = prettifyColumn(column);
+  const unit = featureUnitLabel(column);
+  return unit ? `${label} ${unit}` : label;
 }
 
 function setStatus(message, type) {

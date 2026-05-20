@@ -58,6 +58,29 @@ const COLUMN_LABELS = {
   SubCluster_Name: "Subcluster",
 };
 
+const UNIT_USD = ["funding_total_usd", "early_stage_funding", "venture", "debt_financing", "private_equity"];
+const UNIT_PERCENT = ["early_stage_funding_ratio", "venture_ratio", "debt_financing_ratio", "private_equity_ratio"];
+const UNIT_COUNT = ["funding_rounds", "stage_level"];
+
+/** Returns the unit type for a feature column: 'USD', '%', 'count', or 'log'. */
+export function featureUnit(column) {
+  if (UNIT_USD.includes(column)) return "USD";
+  if (UNIT_PERCENT.includes(column)) return "%";
+  if (UNIT_COUNT.includes(column)) return "count";
+  if (String(column).startsWith("log_")) return "log";
+  return "";
+}
+
+/** Returns a readable label suffix like '(USD)' or '(%)'. */
+export function featureUnitLabel(column) {
+  const unit = featureUnit(column);
+  if (unit === "USD") return "(USD)";
+  if (unit === "%") return "(%)";
+  if (unit === "count") return "(count)";
+  if (unit === "log") return "(log-scale)";
+  return "";
+}
+
 export function summarizeDataset(dataset, options = {}) {
   const rows = dataset.rows ?? [];
   const headers = dataset.headers ?? [];
