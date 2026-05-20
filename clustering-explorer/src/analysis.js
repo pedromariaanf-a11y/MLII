@@ -186,22 +186,109 @@ export function categoricalCounts(rows, column, limit = 12) {
 export function histogram(rows, column, bins = 12) {
   const values = rows.map((row) => toNumber(row[column])).filter((value) => Number.isFinite(value));
   if (!values.length) return [];
-  const stats = basicStats(values);
+  const sorted = [...values].sort((a, b) => a - b);
+  const stats = basicStats(sorted);
   const min = stats.min;
   const max = stats.max;
   if (min === max) {
     return [{ x0: min, x1: max, label: formatCompact(min), count: values.length }];
   }
-  const width = (max - min) / bins;
-  const result = Array.from({ length: bins }, (_, index) => ({
-    x0: min + width * index,
-    x1: index === bins - 1 ? max : min + width * (index + 1),
-    label: `${formatCompact(min + width * index)} to ${formatCompact(index === bins - 1 ? max : min + width * (index + 1))}`,
+
+  // ── Case 1: small-range integers → one bar per integer value ──
+  const allIntegers = sorted.every((v) => Number.isInteger(v));
+  const intRange = max - min;
+  if (allIntegers && intRange <= 30) {
+    const counts = new Map();
+    for (const v of sorted) counts.set(v, (counts.get(v) ?? 0) + 1);
+    const result = [];
+    for (let v = min; v <= max; v += 1) {
+      result.push({ x0: v, x1: v, label: String(v), count: counts.get(v) ?? 0 });
+    }
+    return result;
+  }
+
+  // ── Case 2: zero-heavy data → separate "0" bar + histogram of non-zeros ──
+  const zeroCount = sorted.filter((v) => v === 0).length;
+  const zeroRate = values.length ? zeroCount / values.length : 0;
+  if (zeroRate > 0.3) {
+    const nonZero = sorted.filter((v) => v > 0);
+    if (!nonZero.length) {
+      // Every single value is 0
+      return [{ x0: 0, x1: 0, label: "0 (all rows)", count: zeroCount }];
+    }
+    const nonZeroBins = buildBins(nonZero, Math.max(2, bins - 1));
+    return [
+      { x0: 0, x1: 0, label: "0 (none)", count: zeroCount },
+      ...nonZeroBins,
+    ];
+  }
+
+  // ── Case 3: continuous data ──
+  return buildBins(sorted, bins);
+}
+
+/** Build histogram bins for a sorted array of positive values. */
+function buildBins(sorted, bins) {
+  const stats = basicStats(sorted);
+  let min = stats.min;
+  let max = stats.max;
+  if (min === max) {
+    return [{ x0: min, x1: max, label: formatCompact(min), count: sorted.length }];
+  }
+
+  // Trim extreme outliers using IQR fencing
+  const q1 = stats.q1 ?? min;
+  const q3 = stats.q3 ?? max;
+  const iqr = q3 - q1;
+  if (iqr > 0) {
+    const fence = q3 + 3 * iqr;
+    const trimmedMax = sorted.filter((v) => v <= fence).pop() ?? max;
+    if (trimmedMax > min && trimmedMax < max) {
+      max = trimmedMax;
+    }
+  }
+
+  // Detect skew for log-spaced bins
+  const median = stats.median ?? (min + max) / 2;
+  const useLog = min >= 0 && max > 0 && median > 0 && max / median > 20;
+
+  let edges;
+  if (useLog) {
+    const shift = min === 0 ? 1 : 0;
+    const logMin = Math.log10(min + shift);
+    const logMax = Math.log10(max + shift);
+    const logStep = (logMax - logMin) / bins;
+    edges = Array.from({ length: bins + 1 }, (_, i) =>
+      i === bins ? max : Math.pow(10, logMin + logStep * i) - shift,
+    );
+    edges[0] = min;
+  } else {
+    const step = (max - min) / bins;
+    edges = Array.from({ length: bins + 1 }, (_, i) =>
+      i === bins ? max : min + step * i,
+    );
+  }
+
+  const result = Array.from({ length: bins }, (_, i) => ({
+    x0: edges[i],
+    x1: edges[i + 1],
+    label: `${formatCompact(edges[i])} – ${formatCompact(edges[i + 1])}`,
     count: 0,
   }));
-  for (const value of values) {
-    const index = Math.min(bins - 1, Math.floor((value - min) / width));
-    result[index].count += 1;
+
+  for (const value of sorted) {
+    if (value > max) {
+      result[bins - 1].count += 1;
+      continue;
+    }
+    let lo = 0;
+    let hi = bins - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (value < edges[mid + 1]) hi = mid;
+      else lo = mid + 1;
+    }
+    result[lo].count += 1;
   }
   return result;
 }

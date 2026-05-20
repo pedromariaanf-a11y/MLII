@@ -147,7 +147,7 @@ export function renderHistogram(container, bins, options = {}) {
   if (!bins?.length) return renderEmpty(container, "No numeric values available for this feature.");
   const width = 720;
   const height = 300;
-  const margin = { top: 20, right: 24, bottom: 62, left: 50 };
+  const margin = { top: 20, right: 24, bottom: 72, left: 56 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
   const max = Math.max(...bins.map((bin) => bin.count), 1);
@@ -155,6 +155,21 @@ export function renderHistogram(container, bins, options = {}) {
   const svg = createSvg(width, height);
   const group = svgEl("g", { transform: `translate(${margin.left},${margin.top})` });
   svg.appendChild(group);
+
+  // Y-axis grid lines and tick labels
+  const yTicks = niceTickCount(max);
+  for (let i = 0; i <= yTicks; i += 1) {
+    const tickValue = Math.round((max / yTicks) * i);
+    const y = innerHeight - (tickValue / max) * innerHeight;
+    group.appendChild(svgEl("line", { x1: 0, y1: y, x2: innerWidth, y2: y, class: "grid-line" }));
+    group.appendChild(
+      svgEl(
+        "text",
+        { x: -8, y: y + 4, "text-anchor": "end", class: "tick-label" },
+        formatCompact(tickValue),
+      ),
+    );
+  }
 
   bins.forEach((bin, index) => {
     const heightValue = (bin.count / max) * innerHeight;
@@ -170,20 +185,28 @@ export function renderHistogram(container, bins, options = {}) {
     });
     rect.appendChild(svgEl("title", {}, `${bin.label}: ${formatNumber(bin.count)} rows`));
     group.appendChild(rect);
-    if (index % Math.ceil(bins.length / 6) === 0) {
-      group.appendChild(
-        svgEl(
-          "text",
-          { x: x + barWidth / 2, y: innerHeight + 18, "text-anchor": "middle", class: "tick-label" },
-          formatCompact(bin.x0),
-        ),
+    // Show x-axis labels: at most ~8 labels, rotated to avoid overlap
+    const maxLabels = Math.min(bins.length, 8);
+    const labelStep = Math.max(1, Math.ceil(bins.length / maxLabels));
+    if (index % labelStep === 0 || index === bins.length - 1) {
+      const label = svgEl(
+        "text",
+        {
+          x: x + barWidth / 2,
+          y: innerHeight + 16,
+          "text-anchor": "end",
+          class: "tick-label",
+          transform: `rotate(-35 ${x + barWidth / 2} ${innerHeight + 16})`,
+        },
+        formatCompact(bin.x0),
       );
+      group.appendChild(label);
     }
   });
 
   group.appendChild(svgEl("line", { x1: 0, y1: innerHeight, x2: innerWidth, y2: innerHeight, class: "grid-line" }));
-  group.appendChild(svgEl("text", { x: innerWidth / 2, y: innerHeight + 48, "text-anchor": "middle", class: "axis-label" }, prettifyColumn(options.column ?? "")));
-  group.appendChild(svgEl("text", { x: -36, y: innerHeight / 2, transform: `rotate(-90,-36,${innerHeight / 2})`, "text-anchor": "middle", class: "axis-label" }, "Rows"));
+  group.appendChild(svgEl("text", { x: innerWidth / 2, y: innerHeight + 58, "text-anchor": "middle", class: "axis-label" }, prettifyColumn(options.column ?? "")));
+  group.appendChild(svgEl("text", { x: -42, y: innerHeight / 2, transform: `rotate(-90,-42,${innerHeight / 2})`, "text-anchor": "middle", class: "axis-label" }, "Rows"));
   container.replaceChildren(svg);
 }
 
@@ -194,8 +217,13 @@ export function renderHeatmap(container, heatmap, options = {}) {
   const cellSize = options.cellSize ?? 46;
   const left = options.left ?? 150;
   const top = options.top ?? 72;
-  const width = left + heatmap.columns.length * cellSize + 30;
-  const height = top + heatmap.rows.length * cellSize + 26;
+  const scaleBarWidth = 18;
+  const scaleBarGap = 24;
+  const scaleBarLabelSpace = 42;
+  const gridWidth = heatmap.columns.length * cellSize;
+  const gridHeight = heatmap.rows.length * cellSize;
+  const width = left + gridWidth + scaleBarGap + scaleBarWidth + scaleBarLabelSpace;
+  const height = top + gridHeight + 26;
   const svg = createSvg(width, height);
   const valueMap = new Map(heatmap.cells.map((cell) => [`${cell.row}|||${cell.column}`, cell.value]));
   const maxAbs = Math.max(...heatmap.cells.map((cell) => Math.abs(cell.value ?? 0)), 1);
@@ -250,6 +278,54 @@ export function renderHeatmap(container, heatmap, options = {}) {
       );
     });
   });
+
+  // ── Color scale bar ──
+  const barX = left + gridWidth + scaleBarGap;
+  const barY = top;
+  const barHeight = gridHeight;
+  const steps = 60;
+  const isCorrelation = options.palette === "correlation";
+  const scaleMax = isCorrelation ? 1 : maxAbs;
+
+  for (let i = 0; i < steps; i += 1) {
+    // Map from top (positive) to bottom (negative)
+    const t = i / (steps - 1);           // 0 = top, 1 = bottom
+    const val = scaleMax * (1 - 2 * t);  // +max at top, -max at bottom
+    const color = heatColor(val, maxAbs, options.palette);
+    const sliceH = barHeight / steps;
+    svg.appendChild(svgEl("rect", {
+      x: barX,
+      y: barY + i * sliceH,
+      width: scaleBarWidth,
+      height: sliceH + 0.5,
+      fill: color,
+    }));
+  }
+
+  // Border around the scale bar
+  svg.appendChild(svgEl("rect", {
+    x: barX,
+    y: barY,
+    width: scaleBarWidth,
+    height: barHeight,
+    fill: "none",
+    stroke: "#ccc",
+    "stroke-width": 1,
+    rx: 3,
+  }));
+
+  // Tick labels: top (+max), middle (0), bottom (-max)
+  const labelX = barX + scaleBarWidth + 6;
+  const ticks = [
+    { y: barY + 4, label: isCorrelation ? "+1" : `+${formatNumber(scaleMax, 1)}` },
+    { y: barY + barHeight / 2 + 4, label: "0" },
+    { y: barY + barHeight + 4, label: isCorrelation ? "−1" : `−${formatNumber(scaleMax, 1)}` },
+  ];
+  for (const tick of ticks) {
+    svg.appendChild(
+      svgEl("text", { x: labelX, y: tick.y, "text-anchor": "start", class: "tick-label" }, tick.label),
+    );
+  }
 
   container.replaceChildren(svg);
 }
@@ -374,6 +450,13 @@ export function renderLegend(items) {
     )
     .join("");
   return legend;
+}
+
+function niceTickCount(maxValue) {
+  if (maxValue <= 5) return maxValue;
+  if (maxValue <= 10) return 5;
+  if (maxValue <= 20) return 4;
+  return 5;
 }
 
 function createSvg(width, height) {
