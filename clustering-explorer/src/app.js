@@ -157,10 +157,12 @@ function buildAndRender(datasets, loadErrors) {
   const renderSummary = summarizeDataset({ ...clustered, rows });
   const featureColumns = chooseClusterFeatures(renderSummary);
   const interpretableFeatures = chooseInterpretableFeatures(renderSummary);
+  // Combine both sets so the cluster summary has stats for every column the UI needs
+  const allFeatureColumns = [...new Set([...featureColumns, ...interpretableFeatures])];
   const clusterSummary = computeClusterSummary(
     rows,
     clusterResult.clusterColumn,
-    featureColumns,
+    allFeatureColumns,
     renderSummary.categoricalColumns,
   );
   const separation = computeFeatureSeparation(clusterSummary);
