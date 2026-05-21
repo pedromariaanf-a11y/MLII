@@ -634,15 +634,16 @@ function renderCluster0(model) {
   );
 
   const composition = buildFundingComposition(summary);
+  const activeSources = composition.legend.length;
   renderChartCopy(
     el.subclusterCompositionCopy,
     "Funding Mix Inside Cluster 0",
-    "This shows which funding source dominates each internal group.",
-    "Each bar is one subcluster; the colored parts show average funding-source share.",
+    `Each row is one of the ${formatNumber(summary.clusters.length)} subclusters. The colored segments show the average funding-source share. Only ${formatNumber(activeSources)} funding types have non-zero values in Cluster 0 because this group is dominated by early-stage and venture funding.`,
+    "Each bar is one subcluster; wider colored segments mean that funding source is more dominant.",
     "The split is easy to explain: seed/early-stage companies, small VC-backed companies, and early-stage companies with more rounds.",
   );
   renderStackedBarChart(el.subclusterCompositionChart, composition.rows, {
-    left: 190,
+    left: 220,
     legend: composition.legend,
   });
 
@@ -860,22 +861,31 @@ function buildClusterHeatmap(model) {
 }
 
 function buildFundingComposition(clusterSummary) {
-  const segments = [
+  const allSegments = [
     { feature: "early_stage_funding_ratio", label: "Early-stage", color: CLUSTER_COLORS[0] },
     { feature: "venture_ratio", label: "Venture", color: CLUSTER_COLORS[2] },
     { feature: "debt_financing_ratio", label: "Debt", color: CLUSTER_COLORS[1] },
     { feature: "private_equity_ratio", label: "Private equity", color: CLUSTER_COLORS[3] },
   ];
-  return {
-    legend: segments.map((segment) => ({ label: segment.label, color: segment.color })),
-    rows: clusterSummary.clusters.map((cluster) => ({
-      label: cluster.cluster,
-      segments: segments.map((segment) => ({
-        label: segment.label,
-        value: cluster.features[segment.feature]?.mean ?? 0,
-        color: segment.color,
-      })),
+
+  // Build rows with all segments
+  const rows = clusterSummary.clusters.map((cluster) => ({
+    label: `${cluster.cluster} (${formatNumber(cluster.count)} rows)`,
+    segments: allSegments.map((segment) => ({
+      label: segment.label,
+      value: cluster.features[segment.feature]?.mean ?? 0,
+      color: segment.color,
     })),
+  }));
+
+  // Only include funding types in the legend that have non-zero values in at least one subcluster
+  const activeSegments = allSegments.filter((segment) =>
+    clusterSummary.clusters.some((cluster) => (cluster.features[segment.feature]?.mean ?? 0) > 0.005),
+  );
+
+  return {
+    legend: activeSegments.map((segment) => ({ label: segment.label, color: segment.color })),
+    rows,
   };
 }
 
