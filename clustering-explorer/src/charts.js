@@ -439,7 +439,7 @@ export function renderOutliers(container, outliers, formatter) {
 export function renderLegend(items) {
   const legend = document.createElement("div");
   legend.className = "legend";
-  legend.innerHTML = items
+  legend.innerHTML = `<span class="legend-label">Legend:</span>` + items
     .map(
       (item) => `
         <span class="legend-item">
