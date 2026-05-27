@@ -15,6 +15,8 @@ rename, move, delete, or overwrite any existing project file.
 - Frames the source as a real Crunchbase startup dataset from Kaggle, with the
   app presenting exported notebook output rather than rerunning the notebook.
 - Highlights the zero-heavy funding-source columns as a major data issue.
+- Adds a Zero Problem panel that compares zero rates by funding source and
+  explains the modeling response.
 - Explains the dataset shape, columns, inferred types, missing values, basic
   numeric distributions, category counts, and correlations.
 - Explains the clustering workflow inferred from the notebooks:

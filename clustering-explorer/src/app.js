@@ -61,6 +61,10 @@ function cacheElements() {
     "sourceDetails",
     "overviewMetrics",
     "datasetMetrics",
+    "zeroProblemCopy",
+    "zeroProblemChart",
+    "zeroFeatureSelect",
+    "zeroFeatureBreakdown",
     "missingCopy",
     "missingChart",
     "histogramCopy",
@@ -293,6 +297,8 @@ function renderDataset(model) {
     },
   ]);
 
+  renderZeroProblemPanel(model);
+
   renderChartCopy(
     el.missingCopy,
     "Missing Values",
@@ -349,6 +355,72 @@ function renderDataset(model) {
   );
 
   renderSchemaTable(summary);
+}
+
+function renderZeroProblemPanel(model) {
+  const features = model.zeroSummary.features;
+  const highest = model.zeroSummary.highest;
+  renderChartCopy(
+    el.zeroProblemCopy,
+    "Zero Problem by Funding Source",
+    "Many Crunchbase funding-source amount columns are real zeros, not blank cells. That means absence of a funding type is part of the signal.",
+    "Each bar shows the share of startups where that funding-source amount is exactly zero.",
+    highest
+      ? `${highest.label} is the most zero-heavy field at ${formatPercent(highest.zeroRate)}. Across these source fields, ${formatPercent(model.zeroSummary.zeroRate)} of values are zero.`
+      : "No source-funding zero rates were available.",
+  );
+
+  renderBarChart(
+    el.zeroProblemChart,
+    features.map((feature, index) => ({
+      label: feature.label,
+      value: feature.zeroRate,
+      color: [CLUSTER_COLORS[3], CLUSTER_COLORS[1], CLUSTER_COLORS[2], CLUSTER_COLORS[0]][index % 4],
+    })),
+    {
+      left: 170,
+      height: 285,
+      valueFormatter: (value) => formatPercent(value),
+    },
+  );
+
+  populateSelect(el.zeroFeatureSelect, features.map((feature) => feature.column), (column) => {
+    const feature = features.find((item) => item.column === column);
+    return feature?.label ?? prettifyColumn(column);
+  });
+  el.zeroFeatureSelect.onchange = () => renderZeroFeatureBreakdown(model);
+  renderZeroFeatureBreakdown(model);
+}
+
+function renderZeroFeatureBreakdown(model) {
+  const feature = model.zeroSummary.features.find((item) => item.column === el.zeroFeatureSelect.value)
+    ?? model.zeroSummary.highest;
+  if (!feature) {
+    el.zeroFeatureBreakdown.innerHTML = `<p>No zero-heavy funding-source field was available.</p>`;
+    return;
+  }
+
+  const nonZeroCount = feature.count - feature.zeroCount;
+  el.zeroFeatureBreakdown.innerHTML = `
+    <div class="zero-stat-main">
+      <span>${formatPercent(feature.zeroRate)}</span>
+      <strong>zero values</strong>
+    </div>
+    <dl class="zero-stat-list">
+      <div>
+        <dt>Zero rows</dt>
+        <dd>${formatNumber(feature.zeroCount)}</dd>
+      </div>
+      <div>
+        <dt>Non-zero rows</dt>
+        <dd>${formatNumber(nonZeroCount)}</dd>
+      </div>
+      <div>
+        <dt>Model response</dt>
+        <dd>Use source ratios, log transforms, RobustScaler, and median profiles.</dd>
+      </div>
+    </dl>
+  `;
 }
 
 function renderHistogramPanel(model) {

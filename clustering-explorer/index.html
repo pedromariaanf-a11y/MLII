@@ -128,6 +128,20 @@
 
           <div id="datasetMetrics" class="metric-grid compact"></div>
 
+          <article class="chart-panel wide zero-problem-panel">
+            <div class="zero-panel-grid">
+              <div>
+                <div id="zeroProblemCopy" class="chart-copy"></div>
+                <div id="zeroProblemChart" class="chart-canvas zero-chart"></div>
+              </div>
+              <aside class="zero-detail" aria-label="Selected zero-heavy field details">
+                <label class="control-label" for="zeroFeatureSelect">Inspect source field</label>
+                <select id="zeroFeatureSelect" class="select-control"></select>
+                <div id="zeroFeatureBreakdown" class="zero-breakdown"></div>
+              </aside>
+            </div>
+          </article>
+
           <div class="panel-grid two">
             <article class="chart-panel">
               <div id="missingCopy" class="chart-copy"></div>
