@@ -305,12 +305,45 @@ code {
 }
 
 .chart-panel,
-.table-panel {
+.table-panel,
+.feature-glossary {
   padding: 1rem;
 }
 
 .chart-panel.wide {
   margin-top: 1rem;
+}
+
+.feature-glossary {
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.glossary-item {
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfcfa;
+}
+
+.glossary-item strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.glossary-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .zero-problem-panel {
@@ -750,6 +783,7 @@ tr:last-child td {
 
   .metric-grid,
   .metric-grid.compact,
+  .glossary-grid,
   .insight-grid,
   .process-grid,
   .business-grid {
