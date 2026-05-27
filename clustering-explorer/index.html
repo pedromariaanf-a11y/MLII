@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Startup Clustering Explorer</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
@@ -13,8 +14,8 @@
           <p class="eyebrow">Interactive data story</p>
           <h1>Startup Clustering Explorer</h1>
           <p class="lead">
-            A simple visual story of how the VC startup data became clusters,
-            what those clusters mean, and why Cluster 0 deserved a closer look.
+            A local presentation of startup funding clusters built from the
+            exported notebook results.
           </p>
         </div>
         <nav class="top-nav" aria-label="Page sections">
@@ -47,25 +48,32 @@
             <input id="manualCsvInput" type="file" accept=".csv,text/csv" />
           </div>
 
-          <div class="overview-grid">
+          <div class="overview-hero">
             <div class="story-intro">
-              <p class="eyebrow">What this page explains</p>
-              <h2>From startup data to useful groups</h2>
+              <p class="eyebrow">Dataset and problem</p>
+              <h2>Crunchbase startup data, made readable</h2>
               <p>
-                The project groups startups by funding behavior: how much money
-                they raised, how many rounds they had, their stage, and which
-                funding source dominates.
+                The analysis starts from a real Crunchbase startup dataset
+                published on Kaggle. The app does not rerun the notebook; it
+                presents the exported clustered profile produced from
+                <code>teste.ipynb</code>.
               </p>
               <p>
-                The app keeps the explanation practical: main clusters first,
-                then a short zoom into Cluster 0 because it contains most of
-                the companies.
+                The main data problem was the number of zeros in funding-source
+                columns. Many startups have no recorded debt, private equity, or
+                early-stage amount, so the model story uses ratios, log features,
+                robust scaling, and medians instead of raw averages.
               </p>
+              <div class="story-points" aria-label="Overview highlights">
+                <span>Real Crunchbase data from Kaggle</span>
+                <span>Zero-heavy funding fields</span>
+                <span>Exported labels are read-only</span>
+              </div>
             </div>
             <div id="sourceDetails" class="source-panel" aria-live="polite"></div>
           </div>
 
-          <div id="overviewMetrics" class="metric-grid"></div>
+          <div id="overviewMetrics" class="metric-grid overview-metrics"></div>
         </div>
       </section>
 
@@ -75,31 +83,32 @@
             <p class="eyebrow">Project path</p>
             <h2>The analysis pipeline</h2>
             <p>
-              This is the simple path followed in the notebooks before the app
-              turns the results into charts and business interpretation.
+              This section explains the choices in <code>teste.ipynb</code>
+              before the exported dataset becomes charts and business
+              interpretation.
             </p>
           </div>
 
           <div class="process-grid">
             <article class="process-card">
               <span class="step-number">1</span>
-              <h3>Clean the data</h3>
-              <p>Keep usable startup rows, remove empty records, and focus on funding and company descriptors.</p>
+              <h3>Feature selection</h3>
+              <p>Keep startup descriptors for context, but base the model story on funding scale, rounds, stage, and source mix.</p>
             </article>
             <article class="process-card">
               <span class="step-number">2</span>
-              <h3>Create funding features</h3>
-              <p>Build totals, rounds, stage level, funding-source amounts, ratios, and log-transformed values.</p>
+              <h3>Feature engineering</h3>
+              <p>Create source ratios to separate real zeros from dominant funding sources, then use log features to reduce skew.</p>
             </article>
             <article class="process-card">
               <span class="step-number">3</span>
-              <h3>Scale and reduce</h3>
-              <p>Use RobustScaler to reduce outlier impact, then PCA to create compact components for K-Means.</p>
+              <h3>Scale and project</h3>
+              <p>Use RobustScaler so extreme funding rounds do not dominate, then show the results with two PCA components.</p>
             </article>
             <article class="process-card">
               <span class="step-number">4</span>
-              <h3>Interpret clusters</h3>
-              <p>Use K-Means with four main clusters, then profile each group with real funding values.</p>
+              <h3>Explain decisions</h3>
+              <p>Use the exported K-Means labels as fixed outputs, then explain each cluster with medians and readable feature differences.</p>
             </article>
           </div>
         </div>
@@ -109,10 +118,11 @@
         <div class="section-inner">
           <div class="section-heading">
             <p class="eyebrow">Data checks</p>
-            <h2>What is useful inside the data?</h2>
+            <h2>Zeros, missing values, and useful fields</h2>
             <p>
-              These checks focus on presentation-relevant fields: funding
-              amounts, rounds, stage, market, country, and status.
+              The exported profile is usable, but many funding-source columns
+              are zero. These checks separate zeros from missing values and show
+              which fields are reliable enough to explain.
             </p>
           </div>
 
@@ -163,7 +173,8 @@
             <h2>The four main groups</h2>
             <p>
               The exported cluster labels are used as the source of truth. The
-              charts below explain the size and funding profile of each group.
+              app explains the size, funding profile, and feature differences
+              of each group without recalculating the clustering.
             </p>
           </div>
 
@@ -202,8 +213,8 @@
             <p class="eyebrow">Cluster 0 zoom</p>
             <h2>Should we keep the Cluster 0 analysis?</h2>
             <p id="cluster0Intro">
-              Cluster 0 is large, so the subcluster analysis checks whether it
-              hides simpler internal groups.
+              Cluster 0 is large, so the subcluster analysis is used only to
+              make that one group easier to present.
             </p>
           </div>
 
@@ -219,11 +230,6 @@
               <div id="subclusterFundingChart" class="chart-canvas"></div>
             </article>
           </div>
-
-          <article class="chart-panel wide">
-            <div id="subclusterCompositionCopy" class="chart-copy"></div>
-            <div id="subclusterCompositionChart" class="chart-canvas"></div>
-          </article>
 
           <div id="subclusterProfiles" class="profile-grid"></div>
 
@@ -245,9 +251,9 @@
             <p class="eyebrow">Cluster visualisations</p>
             <h2>Seeing the clusters from different angles</h2>
             <p>
-              The plots below show size, separation, feature intensity, and
-              unusually large funding observations without changing the original
-              data.
+              The plots below show separation, feature intensity, and unusually
+              large funding observations while keeping the exported cluster
+              labels unchanged.
             </p>
           </div>
 
@@ -275,8 +281,8 @@
             <p class="eyebrow">Curiosities &amp; Insights</p>
             <h2>Plain-English observations</h2>
             <p>
-              These notes are generated from the loaded dataset and cluster
-              profiles. They describe patterns, not causal explanations.
+              These notes summarize the strongest non-repeated patterns from
+              the loaded dataset and cluster profiles.
             </p>
           </div>
           <div id="insightsGrid" class="insight-grid"></div>

@@ -6,12 +6,6 @@ export const DEFAULT_DATASETS = [
     required: true,
   },
   {
-    id: "raw",
-    label: "Raw VC investments dataset",
-    path: "../investments_VC.csv",
-    required: false,
-  },
-  {
     id: "cluster0",
     label: "Cluster 0 subcluster profile",
     path: "../cluster0_subclustered_explained.csv",

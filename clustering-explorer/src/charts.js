@@ -84,65 +84,6 @@ export function renderBarChart(container, data, options = {}) {
   container.replaceChildren(svg);
 }
 
-export function renderStackedBarChart(container, rows, options = {}) {
-  if (!rows?.length) return renderEmpty(container, "No values available for this chart.");
-  const width = 780;
-  const height = options.height ?? Math.max(230, rows.length * 58 + 95);
-  const margin = { top: 22, right: 28, bottom: 62, left: options.left ?? 190 };
-  const innerWidth = width - margin.left - margin.right;
-  const rowHeight = 44;
-  const svg = createSvg(width, height);
-  const group = svgEl("g", { transform: `translate(${margin.left},${margin.top})` });
-  svg.appendChild(group);
-
-  rows.forEach((row, rowIndex) => {
-    const y = rowIndex * rowHeight;
-    const total = row.total ?? row.segments.reduce((sum, segment) => sum + Math.max(0, segment.value ?? 0), 0);
-    group.appendChild(
-      svgEl(
-        "text",
-        { x: -10, y: y + 21, "text-anchor": "end", class: "tick-label" },
-        truncate(row.label, 28),
-      ),
-    );
-    group.appendChild(svgEl("rect", { x: 0, y: y + 5, width: innerWidth, height: 24, rx: 5, fill: "#eef3f1" }));
-
-    let x = 0;
-    for (const segment of row.segments) {
-      const value = Math.max(0, segment.value ?? 0);
-      const segmentWidth = total ? (value / total) * innerWidth : 0;
-      if (segmentWidth > 0) {
-        const rect = svgEl("rect", {
-          x,
-          y: y + 5,
-          width: segmentWidth,
-          height: 24,
-          rx: 5,
-          fill: segment.color,
-        });
-        rect.appendChild(svgEl("title", {}, `${row.label} / ${segment.label}: ${formatPercent(value)}`));
-        group.appendChild(rect);
-        if (segmentWidth > 72) {
-          group.appendChild(
-            svgEl(
-              "text",
-              { x: x + segmentWidth / 2, y: y + 22, "text-anchor": "middle", class: "stack-label" },
-              formatPercent(value, 0),
-            ),
-          );
-        }
-      }
-      x += segmentWidth;
-    }
-  });
-
-  group.appendChild(svgEl("line", { x1: 0, y1: rows.length * rowHeight + 2, x2: innerWidth, y2: rows.length * rowHeight + 2, class: "grid-line" }));
-  const wrapper = document.createElement("div");
-  wrapper.appendChild(svg);
-  wrapper.appendChild(renderLegend(options.legend ?? []));
-  container.replaceChildren(wrapper);
-}
-
 export function renderHistogram(container, bins, options = {}) {
   if (!bins?.length) return renderEmpty(container, "No numeric values available for this feature.");
   const width = 720;

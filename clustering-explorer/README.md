@@ -9,21 +9,23 @@ rename, move, delete, or overwrite any existing project file.
 ## What The App Does
 
 - Loads `clustered_startups_real_values.csv` as the primary clustered dataset.
-- Optionally loads `investments_VC.csv` for raw dataset context.
 - Optionally loads `cluster0_subclustered_explained.csv` for the Cluster 0
   zoom-in analysis.
 - Uses the existing `Cluster` labels directly when they are present.
+- Frames the source as a real Crunchbase startup dataset from Kaggle, with the
+  app presenting exported notebook output rather than rerunning the notebook.
+- Highlights the zero-heavy funding-source columns as a major data issue.
 - Explains the dataset shape, columns, inferred types, missing values, basic
   numeric distributions, category counts, and correlations.
 - Explains the clustering workflow inferred from the notebooks:
-  K-Means, `K=4`, RobustScaler, engineered funding features, and PCA-based
-  visualisation.
+  selected funding fields, engineered log and ratio features, RobustScaler,
+  K-Means with `K=4`, and a two-component PCA view for presentation.
 - Explains the Cluster 0 subclustering as a complementary K=3 analysis, not as
   a replacement for the main four-cluster model.
 - Builds interactive cluster visuals:
-  cluster sizes, feature comparisons, profile cards, a PCA-style 2D projection,
-  a cluster feature heatmap, largest-funding observations, and a searchable row
-  explorer.
+  cluster sizes, feature comparisons, profile cards, a two-component PCA
+  projection, a cluster feature heatmap, largest-funding observations, and a
+  searchable row explorer.
 - Generates plain-English "Curiosities & Insights" from the loaded data.
 
 ## Read-Only Inputs
@@ -31,14 +33,11 @@ rename, move, delete, or overwrite any existing project file.
 The app reads these existing files at runtime:
 
 - `../clustered_startups_real_values.csv`
-- `../investments_VC.csv`
 - `../cluster0_subclustered_explained.csv`
 
 The implementation was informed by these existing read-only project files:
 
 - `../teste.ipynb`
-- `../analise_clustering.ipynb`
-- `../cluster0_subclustering_analysis.ipynb`
 
 ## How To Run
 
@@ -67,11 +66,14 @@ CSV files. The page includes a manual CSV upload fallback for that case.
 ## Assumptions
 
 - `clustered_startups_real_values.csv` is the authoritative clustered output.
+- The original data source was a real Crunchbase dataset from Kaggle.
 - The existing `Cluster` column should be used directly and not recomputed.
-- The clustering method is inferred from the notebooks as K-Means with four
+- The clustering method is inferred from `teste.ipynb` as K-Means with four
   clusters and engineered funding features.
-- The browser-side PCA-style projection is for explanation and visualisation
-  only. It does not replace the original notebook model.
+- The PCA projection is for explanation and visualisation only. If exported
+  `PC1` and `PC2` columns exist, the app uses them; otherwise it computes a
+  read-only two-component browser projection from the engineered features. It
+  does not replace the original notebook model.
 - If a future CSV has no cluster labels, the app can create temporary fallback
   K-Means labels in browser memory only. It does not write those labels back to
   disk.

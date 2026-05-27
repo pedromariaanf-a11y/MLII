@@ -511,8 +511,15 @@ function pearson(aValues, bValues) {
 }
 
 export function computePcaProjection(rows, clusterColumn, featureColumns, maxPoints = 2200) {
-  if (rows.length < 3 || featureColumns.length < 2) {
-    return { points: [], explained: [0, 0], features: featureColumns, fallback: true };
+  if (rows.length < 3) {
+    return { points: [], explained: [0, 0], explainedKnown: false, features: featureColumns, fallback: true };
+  }
+
+  const exportedProjection = projectionFromExistingComponents(rows, clusterColumn, maxPoints);
+  if (exportedProjection) return exportedProjection;
+
+  if (featureColumns.length < 2) {
+    return { points: [], explained: [0, 0], explainedKnown: false, features: featureColumns, fallback: true };
   }
 
   const stats = featureColumns.map((feature) => {
@@ -559,8 +566,46 @@ export function computePcaProjection(rows, clusterColumn, featureColumns, maxPoi
   return {
     points,
     explained: [lambda1 / totalVariance, lambda2 / totalVariance],
+    explainedKnown: true,
     features: featureColumns,
     fallback: false,
+    source: "computed",
+  };
+}
+
+function projectionFromExistingComponents(rows, clusterColumn, maxPoints) {
+  const hasPc1 = rows.some((row) => Number.isFinite(toNumber(row.PC1)));
+  const hasPc2 = rows.some((row) => Number.isFinite(toNumber(row.PC2)));
+  if (!hasPc1 || !hasPc2) return null;
+
+  const sampleIndexes = stratifiedSampleIndexes(rows, clusterColumn, maxPoints);
+  const points = sampleIndexes
+    .map((index) => {
+      const row = rows[index];
+      const x = toNumber(row.PC1);
+      const y = toNumber(row.PC2);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+      return {
+        x,
+        y,
+        cluster: toDisplayValue(row[clusterColumn]),
+        name: row.name ?? row.Name ?? `Row ${index + 1}`,
+        market: row.market ?? row["market"] ?? "",
+        status: row.status ?? "",
+        country: row.country_code ?? "",
+        rowIndex: index,
+      };
+    })
+    .filter(Boolean);
+
+  if (points.length < 3) return null;
+  return {
+    points,
+    explained: [0, 0],
+    explainedKnown: false,
+    features: ["PC1", "PC2"],
+    fallback: false,
+    source: "exported",
   };
 }
 
