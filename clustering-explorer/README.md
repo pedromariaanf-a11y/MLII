@@ -25,9 +25,11 @@ rename, move, delete, or overwrite any existing project file.
 - Explains the Cluster 0 subclustering as a complementary K=3 analysis, not as
   a replacement for the main four-cluster model.
 - Builds interactive cluster visuals:
-  cluster sizes, feature comparisons, profile cards, a two-component PCA
-  projection, a cluster feature heatmap, largest-funding observations, and a
-  searchable row explorer.
+  cluster sizes, feature comparisons, profile cards, two-component and 3D
+  PCA-style projections, a cluster feature heatmap, largest-funding
+  observations, and a searchable row explorer.
+- Vendors a local Three.js module for the 3D cluster landscape so the app can
+  run from a local static server without reaching a CDN.
 - Generates plain-English "Curiosities & Insights" from the loaded data.
 
 ## Read-Only Inputs

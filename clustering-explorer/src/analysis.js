@@ -512,14 +512,14 @@ function pearson(aValues, bValues) {
 
 export function computePcaProjection(rows, clusterColumn, featureColumns, maxPoints = 2200) {
   if (rows.length < 3) {
-    return { points: [], explained: [0, 0], explainedKnown: false, features: featureColumns, fallback: true };
+    return { points: [], explained: [0, 0, 0], explainedKnown: false, features: featureColumns, fallback: true };
   }
 
   const exportedProjection = projectionFromExistingComponents(rows, clusterColumn, maxPoints);
   if (exportedProjection) return exportedProjection;
 
   if (featureColumns.length < 2) {
-    return { points: [], explained: [0, 0], explainedKnown: false, features: featureColumns, fallback: true };
+    return { points: [], explained: [0, 0, 0], explainedKnown: false, features: featureColumns, fallback: true };
   }
 
   const stats = featureColumns.map((feature) => {
@@ -546,6 +546,9 @@ export function computePcaProjection(rows, clusterColumn, featureColumns, maxPoi
   const deflated = deflate(covariance, pc1, lambda1);
   const pc2 = powerIteration(deflated);
   const lambda2 = eigenvalue(covariance, pc2);
+  const deflatedTwice = deflate(deflated, pc2, lambda2);
+  const pc3 = featureColumns.length >= 3 ? powerIteration(deflatedTwice) : Array(featureColumns.length).fill(0);
+  const lambda3 = featureColumns.length >= 3 ? eigenvalue(covariance, pc3) : 0;
 
   const sampleIndexes = stratifiedSampleIndexes(rows, clusterColumn, maxPoints);
   const points = sampleIndexes.map((index) => {
@@ -554,6 +557,7 @@ export function computePcaProjection(rows, clusterColumn, featureColumns, maxPoi
     return {
       x: dot(vector, pc1),
       y: dot(vector, pc2),
+      z: dot(vector, pc3),
       cluster: toDisplayValue(row[clusterColumn]),
       name: row.name ?? row.Name ?? `Row ${index + 1}`,
       market: row.market ?? row["market"] ?? "",
@@ -565,7 +569,7 @@ export function computePcaProjection(rows, clusterColumn, featureColumns, maxPoi
 
   return {
     points,
-    explained: [lambda1 / totalVariance, lambda2 / totalVariance],
+    explained: [lambda1 / totalVariance, lambda2 / totalVariance, Math.max(0, lambda3 / totalVariance)],
     explainedKnown: true,
     features: featureColumns,
     fallback: false,
@@ -584,10 +588,12 @@ function projectionFromExistingComponents(rows, clusterColumn, maxPoints) {
       const row = rows[index];
       const x = toNumber(row.PC1);
       const y = toNumber(row.PC2);
+      const z = toNumber(row.PC3);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
       return {
         x,
         y,
+        z: Number.isFinite(z) ? z : 0,
         cluster: toDisplayValue(row[clusterColumn]),
         name: row.name ?? row.Name ?? `Row ${index + 1}`,
         market: row.market ?? row["market"] ?? "",
@@ -601,7 +607,7 @@ function projectionFromExistingComponents(rows, clusterColumn, maxPoints) {
   if (points.length < 3) return null;
   return {
     points,
-    explained: [0, 0],
+    explained: [0, 0, 0],
     explainedKnown: false,
     features: ["PC1", "PC2"],
     fallback: false,

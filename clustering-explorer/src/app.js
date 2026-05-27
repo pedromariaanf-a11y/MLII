@@ -30,12 +30,19 @@ import {
   renderMetricCards,
   renderOutliers,
   renderScatter,
+  renderScatter3D,
   renderTable,
 } from "./charts.js";
 import { generateInsights } from "./insights.js";
 
 const state = {
   model: null,
+  guess: {
+    currentRow: null,
+    answered: false,
+    correct: 0,
+    total: 0,
+  },
 };
 
 const ZERO_SOURCE_FEATURES = [
@@ -95,6 +102,8 @@ function cacheElements() {
     "subclusterComparisonTable",
     "projectionCopy",
     "projectionChart",
+    "projection3dCopy",
+    "projection3dScene",
     "clusterHeatmapCopy",
     "clusterHeatmap",
     "outlierCopy",
@@ -105,6 +114,13 @@ function cacheElements() {
     "clusterFilter",
     "tableStatus",
     "sampleTable",
+    "guessTitle",
+    "guessSubtitle",
+    "guessScore",
+    "guessFacts",
+    "guessOptions",
+    "guessFeedback",
+    "guessNextButton",
   ]) {
     el[id] = document.getElementById(id);
   }
@@ -197,6 +213,7 @@ function buildAndRender(datasets, loadErrors) {
     interpretableFeatures,
     cluster0,
   };
+  resetGuessState();
 
   setStatus(
     `Loaded ${formatNumber(rows.length)} clustered startup rows from ${clustered.path}. Existing files were read only.`,
@@ -216,6 +233,7 @@ function renderAll() {
   renderInsights(model);
   renderBusiness(model);
   renderExplorer(model);
+  renderGuessGame(model);
 }
 
 function renderSourceDetails(model) {
@@ -380,6 +398,8 @@ function renderZeroProblemPanel(model) {
     {
       left: 170,
       height: 285,
+      scaleMax: 1,
+      axisFormatter: (value) => formatPercent(value, 0),
       valueFormatter: (value) => formatPercent(value),
     },
   );
@@ -553,10 +573,17 @@ function renderFeatureCompare(model) {
     feature && top ? `${top.label} has the highest median ${prettifyColumn(feature)} ${unitHint}.` : "Choose a feature to compare clusters.",
   );
   if (!feature) return renderEmpty(el.featureByClusterChart, "No feature selected.");
-  renderBarChart(el.featureByClusterChart, rows, {
+  const chartOptions = {
     left: 110,
+    axisFormatter: unitType === "USD"
+      ? formatMoney
+      : unitType === "%"
+        ? (value) => formatPercent(value, 0)
+        : (value) => formatNumber(value, 1),
     valueFormatter: (value) => formatFeatureValue(feature, value),
-  });
+  };
+  if (unitType === "%") chartOptions.scaleMax = 1;
+  renderBarChart(el.featureByClusterChart, rows, chartOptions);
 }
 
 function renderClusterProfiles(clusterSummary) {
@@ -779,6 +806,20 @@ function renderVisuals(model) {
     yLabel: "PC2",
   });
 
+  const explained3d = model.projection.explainedKnown
+    ? model.projection.explained.slice(0, 3).map((value) => formatPercent(value)).join(" + ")
+    : "";
+  renderChartCopy(
+    el.projection3dCopy,
+    "3D Cluster Landscape",
+    "This view uses the first three PCA-style components to make cluster separation easier to explore during the presentation.",
+    "Colors are the exported cluster labels. The scene rotates automatically and can be dragged to inspect overlaps.",
+    model.projection.points.some((point) => Number.isFinite(point.z))
+      ? `The displayed components explain about ${explained3d} of the robust-scaled feature variation in this app view.`
+      : "A third component was not available, so the scene falls back to a flat view.",
+  );
+  renderScatter3D(el.projection3dScene, model.projection.points);
+
   const heatmap = buildClusterHeatmap(model);
   const topSeparation = model.separation[0];
   renderChartCopy(
@@ -865,6 +906,237 @@ function renderExplorer(model) {
   el.tableSearch.oninput = update;
   el.clusterFilter.onchange = update;
   renderSampleTable(model);
+}
+
+function resetGuessState() {
+  state.guess = {
+    currentRow: null,
+    answered: false,
+    correct: 0,
+    total: 0,
+  };
+}
+
+function renderGuessGame(model) {
+  if (!el.guessFacts || !el.guessOptions || !el.guessNextButton) return;
+  updateGuessScore();
+  el.guessNextButton.onclick = () => startGuessRound(model);
+  startGuessRound(model);
+}
+
+function startGuessRound(model) {
+  const row = pickGuessRow(model);
+  if (!row) {
+    el.guessTitle.textContent = "No quiz row available";
+    el.guessSubtitle.textContent = "";
+    el.guessFacts.innerHTML = "";
+    el.guessOptions.innerHTML = "";
+    el.guessFeedback.textContent = "The exported dataset does not have enough cluster-labelled rows for the quiz.";
+    return;
+  }
+
+  state.guess.currentRow = row;
+  state.guess.answered = false;
+  el.guessTitle.textContent = `Anonymous startup #${row.__rowNumber ?? "?"}`;
+  el.guessSubtitle.textContent = buildGuessSubtitle(row);
+  el.guessFacts.innerHTML = buildGuessFacts(row)
+    .map(
+      (fact) => `
+        <div class="guess-fact">
+          <span>${escapeHtml(fact.label)}</span>
+          <strong>${escapeHtml(fact.value)}</strong>
+          <small>${escapeHtml(fact.note)}</small>
+        </div>
+      `,
+    )
+    .join("");
+
+  const clusters = uniqueClusterValues(model.rows, model.clusterResult.clusterColumn);
+  el.guessOptions.innerHTML = clusters
+    .map((cluster, index) => {
+      const color = CLUSTER_COLORS[index % CLUSTER_COLORS.length];
+      return `
+        <button class="guess-option" type="button" data-cluster="${escapeHtml(cluster)}" style="--cluster-color:${color}">
+          <span>Cluster ${escapeHtml(cluster)}</span>
+          <small>Lock answer</small>
+        </button>
+      `;
+    })
+    .join("");
+  for (const button of el.guessOptions.querySelectorAll(".guess-option")) {
+    button.onclick = () => handleGuess(model, button.dataset.cluster);
+  }
+
+  el.guessFeedback.textContent = "Pick the cluster that best matches this funding profile.";
+}
+
+function handleGuess(model, selectedCluster) {
+  if (state.guess.answered || !state.guess.currentRow) return;
+  state.guess.answered = true;
+  state.guess.total += 1;
+
+  const actualCluster = toDisplayValue(state.guess.currentRow[model.clusterResult.clusterColumn]);
+  const isCorrect = selectedCluster === actualCluster;
+  if (isCorrect) state.guess.correct += 1;
+  updateGuessScore();
+
+  for (const button of el.guessOptions.querySelectorAll(".guess-option")) {
+    const cluster = button.dataset.cluster;
+    button.disabled = true;
+    button.classList.toggle("correct", cluster === actualCluster);
+    button.classList.toggle("wrong", cluster === selectedCluster && !isCorrect);
+  }
+
+  const clusterProfile = model.clusterSummary.clusters.find((cluster) => String(cluster.cluster) === actualCluster);
+  const headline = isCorrect
+    ? "Correct. You read the funding fingerprint."
+    : `Not quite. This one belongs to Cluster ${actualCluster}.`;
+  el.guessFeedback.innerHTML = `
+    <strong>${escapeHtml(headline)}</strong>
+    <p>${escapeHtml(buildGuessExplanation(state.guess.currentRow, actualCluster, clusterProfile))}</p>
+  `;
+}
+
+function updateGuessScore() {
+  if (el.guessScore) el.guessScore.textContent = `${formatNumber(state.guess.correct)} / ${formatNumber(state.guess.total)}`;
+}
+
+function pickGuessRow(model) {
+  const clusterColumn = model.clusterResult.clusterColumn;
+  const candidates = model.rows.filter((row) => {
+    const cluster = toDisplayValue(row[clusterColumn]);
+    if (cluster === "(missing)") return false;
+    return ["funding_total_usd", "funding_rounds", "stage_level", "venture", "debt_financing", "private_equity", "early_stage_funding"]
+      .some((column) => Number.isFinite(toNumber(row[column])));
+  });
+  if (!candidates.length) return null;
+  let row = candidates[Math.floor(Math.random() * candidates.length)];
+  if (candidates.length > 1 && row === state.guess.currentRow) {
+    row = candidates[(candidates.indexOf(row) + 1) % candidates.length];
+  }
+  return row;
+}
+
+function buildGuessSubtitle(row) {
+  const market = toDisplayValue(row.market);
+  const status = toDisplayValue(row.status);
+  const country = toDisplayValue(row.country_code);
+  const parts = [market, status, country].filter((part) => part && part !== "(missing)");
+  return parts.length ? parts.join(" - ") : "Real exported row, name hidden for the challenge.";
+}
+
+function buildGuessFacts(row) {
+  const zeroCount = ZERO_SOURCE_FEATURES
+    .map((feature) => toNumber(row[feature.column]))
+    .filter((value) => Number.isFinite(value) && value === 0)
+    .length;
+  return [
+    {
+      label: "Total funding",
+      value: formatGuessMoney(row.funding_total_usd),
+      note: "Scale signal",
+    },
+    {
+      label: "Funding rounds",
+      value: formatGuessNumber(row.funding_rounds, 0),
+      note: fundingRoundNote(row.funding_rounds),
+    },
+    {
+      label: "Stage level",
+      value: formatGuessNumber(row.stage_level, 1),
+      note: stageLevelNote(row.stage_level),
+    },
+    {
+      label: "Top source",
+      value: topFundingSource(row).label,
+      note: topFundingSource(row).note,
+    },
+    {
+      label: "Venture",
+      value: formatGuessMoney(row.venture),
+      note: sourceNote(row.venture),
+    },
+    {
+      label: "Debt financing",
+      value: formatGuessMoney(row.debt_financing),
+      note: sourceNote(row.debt_financing),
+    },
+    {
+      label: "Private equity",
+      value: formatGuessMoney(row.private_equity),
+      note: sourceNote(row.private_equity),
+    },
+    {
+      label: "Zero source fields",
+      value: `${formatNumber(zeroCount)} / ${formatNumber(ZERO_SOURCE_FEATURES.length)}`,
+      note: "Absence is also signal",
+    },
+  ];
+}
+
+function buildGuessExplanation(row, actualCluster, clusterProfile) {
+  const description = clusterProfile
+    ? describeMainCluster(clusterProfile)
+    : `Cluster ${actualCluster} is the exported label for this row.`;
+  return `${description} This card had ${formatGuessMoney(row.funding_total_usd)} total funding, ${fundingRoundPhrase(row.funding_rounds)}, stage level ${formatGuessNumber(row.stage_level, 1)}, and ${fundingSourceSentence(row)}.`;
+}
+
+function topFundingSource(row) {
+  const ranked = ZERO_SOURCE_FEATURES
+    .map((feature) => ({ label: feature.label.replace(" funding", ""), value: toNumber(row[feature.column]) }))
+    .filter((feature) => Number.isFinite(feature.value))
+    .sort((a, b) => b.value - a.value);
+  const top = ranked[0];
+  if (!top || top.value <= 0) return { label: "None above zero", note: "All source amounts are zero" };
+  return { label: top.label, note: `${formatMoney(top.value)} recorded` };
+}
+
+function fundingSourceSentence(row) {
+  const top = topFundingSource(row);
+  const zeroCount = ZERO_SOURCE_FEATURES
+    .map((feature) => toNumber(row[feature.column]))
+    .filter((value) => Number.isFinite(value) && value === 0)
+    .length;
+  return `${top.label.toLowerCase()} as the strongest source clue, with ${formatNumber(zeroCount)} zero source fields`;
+}
+
+function formatGuessMoney(value) {
+  const number = toNumber(value);
+  return Number.isFinite(number) ? formatMoney(number) : "N/A";
+}
+
+function formatGuessNumber(value, digits = 0) {
+  const number = toNumber(value);
+  return Number.isFinite(number) ? formatNumber(number, digits) : "N/A";
+}
+
+function fundingRoundNote(value) {
+  const rounds = toNumber(value);
+  if (!Number.isFinite(rounds)) return "Not recorded";
+  if (rounds <= 1) return "Single formal raise";
+  if (rounds >= 4) return "Many recorded raises";
+  return "Several recorded raises";
+}
+
+function fundingRoundPhrase(value) {
+  const rounds = toNumber(value);
+  if (!Number.isFinite(rounds)) return "an unrecorded number of funding rounds";
+  const label = Math.round(rounds) === 1 ? "funding round" : "funding rounds";
+  return `${formatNumber(rounds, 0)} ${label}`;
+}
+
+function stageLevelNote(value) {
+  const stage = toNumber(value);
+  if (!Number.isFinite(stage)) return "Not recorded";
+  if (stage <= 1) return "Earlier maturity";
+  if (stage >= 3) return "Later maturity";
+  return "Middle maturity";
+}
+
+function sourceNote(value) {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return "Not recorded";
+  return number === 0 ? "No recorded amount" : "Recorded amount";
 }
 
 function renderSampleTable(model) {

@@ -311,6 +311,11 @@
             <div id="projectionChart" class="chart-canvas tall"></div>
           </article>
 
+          <div class="cluster-3d-band">
+            <div id="projection3dCopy" class="chart-copy cluster-3d-copy"></div>
+            <div id="projection3dScene" class="cluster-3d-scene"></div>
+          </div>
+
           <div class="panel-grid two">
             <article class="chart-panel">
               <div id="clusterHeatmapCopy" class="chart-copy"></div>
@@ -372,6 +377,44 @@
             </div>
             <p id="tableStatus" class="table-status"></p>
             <div id="sampleTable" class="table-wrap"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="guess-cluster" class="section section-muted">
+        <div class="section-inner">
+          <div class="section-heading">
+            <p class="eyebrow">Mini challenge</p>
+            <h2>Guess the Cluster</h2>
+            <p>
+              A clean little quiz using real exported rows: read the anonymous
+              funding fingerprint, then guess which cluster it belongs to.
+            </p>
+          </div>
+
+          <article class="guess-panel" aria-live="polite">
+            <div class="guess-header">
+              <div>
+                <p class="eyebrow">Mystery startup</p>
+                <h3 id="guessTitle">Funding fingerprint loading...</h3>
+                <p id="guessSubtitle"></p>
+              </div>
+              <div class="guess-score" aria-label="Guess score">
+                <span id="guessScore">0 / 0</span>
+                <small>score</small>
+              </div>
+            </div>
+
+            <div class="guess-layout">
+              <div id="guessFacts" class="guess-facts"></div>
+              <div class="guess-play">
+                <div id="guessOptions" class="guess-options"></div>
+                <div id="guessFeedback" class="guess-feedback">
+                  Pick the cluster that best matches this funding profile.
+                </div>
+                <button id="guessNextButton" class="guess-next-button" type="button">New startup</button>
+              </div>
+            </div>
           </article>
         </div>
       </section>
