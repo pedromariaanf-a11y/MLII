@@ -34,6 +34,7 @@ import {
   renderTable,
 } from "./charts.js";
 import { generateInsights } from "./insights.js";
+import { startugotchi_render } from "./startugotchi.js";
 
 const state = {
   model: null,
@@ -234,6 +235,7 @@ function renderAll() {
   renderBusiness(model);
   renderExplorer(model);
   renderGuessGame(model);
+  startugotchi_render(model);
 }
 
 function renderSourceDetails(model) {

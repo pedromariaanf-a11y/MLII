@@ -925,6 +925,428 @@ tr:last-child td {
   background: #263238;
 }
 
+.startugotchi-section {
+  border-top: 1px solid var(--line);
+  background:
+    linear-gradient(135deg, rgba(47, 111, 104, 0.1), rgba(197, 139, 45, 0.1)),
+    #f8faf8;
+}
+
+.startugotchi-subtitle {
+  margin-bottom: 0.35rem;
+  color: var(--ink);
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.startugotchi-game {
+  display: grid;
+  gap: 1rem;
+}
+
+.startugotchi-about {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.startugotchi-about p {
+  max-width: 780px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.startugotchi-primary,
+.startugotchi-action {
+  min-height: 2.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.startugotchi-primary {
+  flex: 0 0 auto;
+  padding: 0 0.95rem;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.startugotchi-primary:hover {
+  background: #263238;
+}
+
+.startugotchi-mapping,
+.startugotchi-explain,
+.startugotchi-empty,
+.startugotchi-panel,
+.startugotchi-card,
+.startugotchi-result {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.startugotchi-mapping,
+.startugotchi-explain {
+  padding: 0.9rem 1rem;
+}
+
+.startugotchi-mapping summary,
+.startugotchi-explain summary {
+  color: var(--ink);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.startugotchi-mapping p,
+.startugotchi-explain p {
+  color: var(--muted);
+}
+
+.startugotchi-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.startugotchi-mapping-grid label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.startugotchi-mapping-grid span,
+.startugotchi-result-grid span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.startugotchi-empty {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+}
+
+.startugotchi-empty h3 {
+  margin: 0 0 0.2rem;
+}
+
+.startugotchi-empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.startugotchi-empty-egg {
+  display: grid;
+  flex: 0 0 4.2rem;
+  width: 4.2rem;
+  height: 4.2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #edf3f1;
+  font-size: 2.1rem;
+}
+
+.startugotchi-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 0.58fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.startugotchi-card,
+.startugotchi-panel,
+.startugotchi-result {
+  padding: 1rem;
+}
+
+.startugotchi-card {
+  position: sticky;
+  top: 7.4rem;
+  border-top: 4px solid var(--plum);
+}
+
+.startugotchi-card-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.startugotchi-emoji {
+  display: grid;
+  width: 5.2rem;
+  height: 5.2rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #f4f7f5;
+  font-size: 3rem;
+}
+
+.startugotchi-card h3 {
+  margin: 0.25rem 0 0;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.startugotchi-pet-name {
+  margin: 0.2rem 0 0;
+  color: var(--plum);
+  font-weight: 850;
+}
+
+.startugotchi-description {
+  margin: 0.85rem 0;
+  color: var(--muted);
+}
+
+.startugotchi-card-meta {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.startugotchi-card-meta div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.startugotchi-card-meta dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.startugotchi-card-meta dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.startugotchi-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.startugotchi-facts div {
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfcfa;
+}
+
+.startugotchi-facts span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.startugotchi-facts strong {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 0.18rem;
+  font-size: 0.93rem;
+}
+
+.startugotchi-play-area {
+  display: grid;
+  gap: 1rem;
+}
+
+.startugotchi-panel-heading {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+  justify-content: space-between;
+  margin-bottom: 0.8rem;
+}
+
+.startugotchi-panel-heading h3,
+.startugotchi-result h3 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.startugotchi-panel-heading p,
+.startugotchi-result p {
+  max-width: 520px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.startugotchi-stats {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.startugotchi-stat-label {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.startugotchi-stat-label span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.startugotchi-stat-label strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.startugotchi-stat-track {
+  overflow: hidden;
+  height: 0.78rem;
+  border-radius: 999px;
+  background: #edf0ee;
+}
+
+.startugotchi-stat-fill {
+  width: var(--startugotchi-value);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+}
+
+.startugotchi-stat.is-stress .startugotchi-stat-fill {
+  background: linear-gradient(90deg, var(--gold), var(--coral));
+}
+
+.startugotchi-actions {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.startugotchi-action {
+  padding: 0 0.65rem;
+  background: #fbfcfa;
+  color: var(--ink);
+}
+
+.startugotchi-action:hover:not(:disabled) {
+  border-color: #b7c3be;
+  background: #f4f7f5;
+}
+
+.startugotchi-action:disabled {
+  color: #8c9799;
+  cursor: default;
+}
+
+.startugotchi-result {
+  border-left: 4px solid var(--gold);
+}
+
+.startugotchi-result h3 {
+  margin: 0.2rem 0 0.45rem;
+}
+
+.startugotchi-result-grid {
+  display: grid;
+  grid-template-columns: 0.5fr 1fr 1fr;
+  gap: 0.75rem;
+  margin: 0.9rem 0;
+}
+
+.startugotchi-result-grid div {
+  padding: 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfcfa;
+}
+
+.startugotchi-result-grid strong {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.startugotchi-log {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.startugotchi-log li {
+  padding: 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfcfa;
+}
+
+.startugotchi-log span {
+  color: var(--plum);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.startugotchi-log p {
+  margin: 0.18rem 0;
+}
+
+.startugotchi-log small {
+  color: var(--muted);
+}
+
+.startugotchi-explain-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.startugotchi-explain-grid div {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfcfa;
+}
+
+.startugotchi-explain-grid h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.96rem;
+}
+
+.startugotchi-explain-grid p {
+  margin: 0.28rem 0 0;
+  font-size: 0.9rem;
+}
+
+.startugotchi-disclaimer {
+  margin: 0.8rem 0 0;
+  padding: 0.62rem 0.72rem;
+  border-left: 3px solid var(--teal);
+  border-radius: var(--radius);
+  background: #f4f7f5;
+}
+
 .chart-empty {
   display: grid;
   min-height: 220px;
@@ -1017,6 +1439,7 @@ tr:last-child td {
   .overview-hero,
   .zero-panel-grid,
   .guess-layout,
+  .startugotchi-layout,
   .panel-grid.two {
     grid-template-columns: 1fr;
   }
@@ -1028,11 +1451,25 @@ tr:last-child td {
   .metric-grid,
   .metric-grid.compact,
   .guess-facts,
+  .startugotchi-mapping-grid,
+  .startugotchi-explain-grid,
   .profile-grid,
   .insight-grid,
   .process-grid,
   .business-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .startugotchi-card {
+    position: static;
+  }
+
+  .startugotchi-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .startugotchi-result-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1051,10 +1488,25 @@ tr:last-child td {
   .glossary-grid,
   .guess-facts,
   .guess-options,
+  .startugotchi-mapping-grid,
+  .startugotchi-actions,
+  .startugotchi-explain-grid,
+  .startugotchi-facts,
   .insight-grid,
   .process-grid,
   .business-grid {
     grid-template-columns: 1fr;
+  }
+
+  .startugotchi-about,
+  .startugotchi-empty,
+  .startugotchi-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .startugotchi-primary {
+    width: 100%;
   }
 
   .overview-metrics {
