@@ -30,7 +30,6 @@ import {
   renderMetricCards,
   renderOutliers,
   renderScatter,
-  renderScatter3D,
   renderTable,
 } from "./charts.js";
 import { generateInsights } from "./insights.js";
@@ -103,8 +102,6 @@ function cacheElements() {
     "subclusterComparisonTable",
     "projectionCopy",
     "projectionChart",
-    "projection3dCopy",
-    "projection3dScene",
     "clusterHeatmapCopy",
     "clusterHeatmap",
     "outlierCopy",
@@ -807,20 +804,6 @@ function renderVisuals(model) {
     xLabel: "PC1",
     yLabel: "PC2",
   });
-
-  const explained3d = model.projection.explainedKnown
-    ? model.projection.explained.slice(0, 3).map((value) => formatPercent(value)).join(" + ")
-    : "";
-  renderChartCopy(
-    el.projection3dCopy,
-    "3D Cluster Landscape",
-    "This view uses the first three PCA-style components to make cluster separation easier to explore during the presentation.",
-    "Colors are the exported cluster labels. The scene rotates automatically and can be dragged to inspect overlaps.",
-    model.projection.points.some((point) => Number.isFinite(point.z))
-      ? `The displayed components explain about ${explained3d} of the robust-scaled feature variation in this app view.`
-      : "A third component was not available, so the scene falls back to a flat view.",
-  );
-  renderScatter3D(el.projection3dScene, model.projection.points);
 
   const heatmap = buildClusterHeatmap(model);
   const topSeparation = model.separation[0];
