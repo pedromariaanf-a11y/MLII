@@ -52,6 +52,14 @@ const ZERO_SOURCE_FEATURES = [
   { column: "early_stage_funding", label: "Early-stage funding" },
 ];
 
+const STATUS_GROUPS = [
+  { key: "operating", label: "Operating", color: "#2f6f68" },
+  { key: "acquired", label: "Acquired", color: "#3f5f9e" },
+  { key: "closed", label: "Closed", color: "#d95f4f" },
+  { key: "unknown", label: "Unknown", color: "#8c9799" },
+  { key: "other", label: "Other", color: "#c58b2d" },
+];
+
 const el = {};
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -90,6 +98,9 @@ function cacheElements() {
     "featureCompareSelect",
     "featureByClusterChart",
     "clusterProfiles",
+    "statusByClusterCopy",
+    "statusByClusterGrid",
+    "statusByClusterTable",
     "clusterComparisonTable",
     "cluster0",
     "cluster0Intro",
@@ -194,6 +205,7 @@ function buildAndRender(datasets, loadErrors) {
   const outliers = getOutliers(rows);
   const cluster0 = buildCluster0Model(cluster0Dataset, rows.length, clusterSummary);
   const zeroSummary = computeZeroSummary(rows);
+  const statusByCluster = computeStatusByCluster(rows, clusterResult.clusterColumn, clusterSummary);
 
   state.model = {
     datasets,
@@ -210,6 +222,7 @@ function buildAndRender(datasets, loadErrors) {
     featureColumns,
     interpretableFeatures,
     cluster0,
+    statusByCluster,
   };
   resetGuessState();
 
@@ -546,6 +559,7 @@ function renderClustering(model) {
   renderFeatureCompare(model);
 
   renderClusterProfiles(clusterSummary);
+  renderStatusByCluster(model);
   renderClusterComparison(model);
 }
 
@@ -607,6 +621,94 @@ function renderClusterProfiles(clusterSummary) {
       `;
     })
     .join("");
+}
+
+function renderStatusByCluster(model) {
+  const summary = model.statusByCluster;
+  renderChartCopy(
+    el.statusByClusterCopy,
+    "Status by Cluster",
+    "This checks the startup status labels after clustering. Status was not used to create the clusters; it is used here to explain how each funding profile is distributed across operating, acquired, closed, and unknown rows.",
+    "Each card is one cluster. The stacked bar shows the percentage mix of status labels inside that cluster, not the whole dataset.",
+    summary.takeaway,
+  );
+
+  if (!summary.clusters.length) {
+    renderEmpty(el.statusByClusterGrid, "No status values were available for the loaded rows.");
+    renderEmpty(el.statusByClusterTable, "No status values were available for the loaded rows.");
+    return;
+  }
+
+  el.statusByClusterGrid.innerHTML = summary.clusters
+    .map((cluster) => renderStatusClusterCard(cluster, summary.groups))
+    .join("");
+  renderStatusByClusterTable(summary);
+}
+
+function renderStatusClusterCard(cluster, groups) {
+  const segments = groups
+    .map((group) => {
+      const item = cluster.statuses.find((status) => status.key === group.key);
+      const percentage = item?.percentage ?? 0;
+      if (!item?.count) return "";
+      return `
+        <span
+          class="status-segment"
+          style="--status-width:${percentage * 100}%; --status-color:${group.color}"
+          title="${escapeHtml(`${group.label}: ${formatPercent(percentage)} (${formatNumber(item.count)} rows)`)}"
+        ></span>
+      `;
+    })
+    .join("");
+  const detailItems = groups
+    .map((group) => {
+      const item = cluster.statuses.find((status) => status.key === group.key);
+      return `
+        <div>
+          <dt><span style="background:${group.color}"></span>${escapeHtml(group.label)}</dt>
+          <dd>${formatPercent(item?.percentage ?? 0)} <small>${formatNumber(item?.count ?? 0)} rows</small></dd>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <article class="status-cluster-card" style="--cluster-color:${cluster.color}">
+      <div class="status-cluster-heading">
+        <span class="badge">Cluster ${escapeHtml(cluster.cluster)}</span>
+        <strong>${escapeHtml(cluster.name)}</strong>
+      </div>
+      <div class="status-stack" aria-label="Status distribution for Cluster ${escapeHtml(cluster.cluster)}">
+        ${segments}
+      </div>
+      <p>${escapeHtml(cluster.explanation)}</p>
+      <dl class="status-detail-list">
+        ${detailItems}
+      </dl>
+    </article>
+  `;
+}
+
+function renderStatusByClusterTable(summary) {
+  const columns = [
+    { key: "cluster", label: "Cluster" },
+    { key: "rows", label: "Rows", format: formatNumber },
+    ...summary.groups.map((group) => ({ key: group.key, label: group.label })),
+    { key: "interpretation", label: "Interpretation" },
+  ];
+  const rows = summary.clusters.map((cluster) => {
+    const row = {
+      cluster: `Cluster ${cluster.cluster}`,
+      rows: cluster.count,
+      interpretation: cluster.explanation,
+    };
+    for (const group of summary.groups) {
+      const item = cluster.statuses.find((status) => status.key === group.key);
+      row[group.key] = `${formatPercent(item?.percentage ?? 0)} (${formatNumber(item?.count ?? 0)})`;
+    }
+    return row;
+  });
+  renderTable(el.statusByClusterTable, columns, rows);
 }
 
 function renderClusterComparison(model) {
@@ -1163,6 +1265,118 @@ function categoryCountsForModel(model, column, limit) {
     .map(([label, count]) => ({ label, value: count, count, percentage: model.rows.length ? count / model.rows.length : 0 }))
     .sort((a, b) => b.count - a.count)
     .slice(0, limit);
+}
+
+function computeStatusByCluster(rows, clusterColumn, clusterSummary) {
+  if (!rows.some((row) => Object.prototype.hasOwnProperty.call(row, "status"))) {
+    return {
+      groups: STATUS_GROUPS.filter((group) => group.key !== "other"),
+      clusters: [],
+      takeaway: "No status column was found in the loaded dataset.",
+    };
+  }
+
+  const clusters = uniqueClusterValues(rows, clusterColumn);
+  const totals = Object.fromEntries(STATUS_GROUPS.map((group) => [group.key, 0]));
+  const clusterProfiles = clusters.map((cluster, index) => {
+    const subset = rows.filter((row) => toDisplayValue(row[clusterColumn]) === cluster);
+    const counts = Object.fromEntries(STATUS_GROUPS.map((group) => [group.key, 0]));
+    for (const row of subset) {
+      const key = normalizeStatus(row.status);
+      counts[key] = (counts[key] ?? 0) + 1;
+      totals[key] = (totals[key] ?? 0) + 1;
+    }
+    const profile = clusterSummary.clusters.find((item) => String(item.cluster) === String(cluster));
+    const statuses = STATUS_GROUPS.map((group) => ({
+      ...group,
+      count: counts[group.key] ?? 0,
+      percentage: subset.length ? (counts[group.key] ?? 0) / subset.length : 0,
+    }));
+    return {
+      cluster,
+      name: profile?.name ?? `Cluster ${cluster}`,
+      color: CLUSTER_COLORS[index % CLUSTER_COLORS.length],
+      count: subset.length,
+      statuses,
+      explanation: "",
+    };
+  });
+
+  const groups = STATUS_GROUPS.filter((group) => group.key !== "other" || totals.other > 0);
+  const summary = {
+    groups,
+    clusters: clusterProfiles,
+    highestAcquired: highestStatusCluster(clusterProfiles, "acquired"),
+    highestClosed: highestStatusCluster(clusterProfiles, "closed"),
+    lowestClosed: lowestStatusCluster(clusterProfiles, "closed"),
+    takeaway: "",
+  };
+  summary.takeaway = describeStatusTakeaway(summary);
+  summary.clusters = clusterProfiles.map((cluster) => ({
+    ...cluster,
+    statuses: cluster.statuses.filter((status) => groups.some((group) => group.key === status.key)),
+    explanation: describeClusterStatus(cluster, summary),
+  }));
+  return summary;
+}
+
+function normalizeStatus(value) {
+  const status = String(value ?? "").trim().toLowerCase();
+  if (!status || status === "(missing)") return "unknown";
+  if (status.includes("acquired")) return "acquired";
+  if (status.includes("closed") || status.includes("inactive") || status.includes("failed") || status.includes("shutdown")) return "closed";
+  if (status.includes("operating") || status.includes("active") || status.includes("live")) return "operating";
+  return "other";
+}
+
+function highestStatusCluster(clusters, key) {
+  return [...clusters]
+    .filter((cluster) => cluster.count > 0)
+    .sort((a, b) => statusRate(b, key) - statusRate(a, key))[0] ?? null;
+}
+
+function lowestStatusCluster(clusters, key) {
+  return [...clusters]
+    .filter((cluster) => cluster.count > 0)
+    .sort((a, b) => statusRate(a, key) - statusRate(b, key))[0] ?? null;
+}
+
+function statusRate(cluster, key) {
+  return cluster.statuses.find((status) => status.key === key)?.percentage ?? 0;
+}
+
+function describeStatusTakeaway(summary) {
+  if (!summary.clusters.length) return "No status distribution could be calculated.";
+  const acquired = summary.highestAcquired;
+  const closed = summary.highestClosed;
+  if (acquired && closed) {
+    return `Cluster ${acquired.cluster} has the highest acquired share (${formatPercent(statusRate(acquired, "acquired"))}), while Cluster ${closed.cluster} has the highest closed share (${formatPercent(statusRate(closed, "closed"))}). Operating still dominates every cluster, so status should be presented as context rather than proof that a cluster guarantees success.`;
+  }
+  return "Operating is the dominant status label, so status should be presented as context rather than a direct success prediction.";
+}
+
+function describeClusterStatus(cluster, summary) {
+  const operating = statusRate(cluster, "operating");
+  const acquired = statusRate(cluster, "acquired");
+  const closed = statusRate(cluster, "closed");
+  const unknown = statusRate(cluster, "unknown");
+
+  if (summary.highestAcquired && cluster.cluster === summary.highestAcquired.cluster && acquired > 0) {
+    return `This cluster has the strongest exit signal: ${formatPercent(acquired)} acquired and ${formatPercent(closed)} closed. Its funding profile is the one most associated with acquisitions in this dataset.`;
+  }
+  if (summary.highestClosed && cluster.cluster === summary.highestClosed.cluster && closed > 0) {
+    return `This cluster has the highest closure share at ${formatPercent(closed)}. Most rows are still operating, but this profile carries the clearest failure signal among the clusters.`;
+  }
+  if (summary.lowestClosed && cluster.cluster === summary.lowestClosed.cluster && closed < 0.03) {
+    return `This cluster has the lowest closure share (${formatPercent(closed)}) and a high operating share (${formatPercent(operating)}). Read that as stability in the recorded snapshot, not guaranteed success.`;
+  }
+  if (operating >= 0.85) {
+    return `This cluster is mostly operating (${formatPercent(operating)}), with fewer final outcomes recorded. It is better interpreted as an active or unresolved profile.`;
+  }
+  if (unknown >= 0.08) {
+    return `This cluster has a noticeable unknown-status share (${formatPercent(unknown)}), so its status interpretation needs extra caution.`;
+  }
+  return `This cluster is dominated by operating rows (${formatPercent(operating)}), with ${formatPercent(acquired)} acquired and ${formatPercent(closed)} closed.`;
 }
 
 function computeZeroSummary(rows) {
