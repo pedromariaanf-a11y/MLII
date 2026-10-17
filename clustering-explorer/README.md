@@ -1,101 +1,72 @@
 # Startup Clustering Explorer
 
-This is a standalone interactive app for explaining the dataset, clustering
-results, visualisations, and notable insights in this project.
+An interactive web companion for exploring the dataset, clustering results, and startup profiles generated in this project.
 
-It is intentionally isolated in `clustering-explorer/`. It does not edit,
-rename, move, delete, or overwrite any existing project file.
+The application runs entirely in the browser (client-side) using vanilla HTML, CSS, and JavaScript. It does not modify, retrain, or overwrite any project models or datasets.
 
-## What The App Does
+---
 
-- Loads `clustered_startups_real_values.csv` as the primary clustered dataset.
-- Optionally loads `cluster0_subclustered_explained.csv` for the Cluster 0
-  zoom-in analysis.
-- Uses the existing `Cluster` labels directly when they are present.
-- Frames the source as a real Crunchbase startup dataset from Kaggle, with the
-  app presenting exported notebook output rather than rerunning the notebook.
-- Highlights the zero-heavy funding-source columns as a major data issue.
-- Adds a Zero Problem panel that compares zero rates by funding source and
-  explains the modeling response.
-- Explains the dataset shape, columns, inferred types, missing values, basic
-  numeric distributions, category counts, and correlations.
-- Explains the clustering workflow inferred from the notebooks:
-  selected funding fields, engineered log and ratio features, RobustScaler,
-  K-Means with `K=4`, and a two-component PCA view for presentation.
-- Explains the Cluster 0 subclustering as a complementary K=3 analysis, not as
-  a replacement for the main four-cluster model.
-- Builds interactive cluster visuals:
-  cluster sizes, feature comparisons, profile cards, a two-component
-  PCA-style projection, a cluster feature heatmap, largest-funding observations,
-  and a searchable row explorer.
-- Generates plain-English "Curiosities & Insights" from the loaded data.
+## What the Explorer Does
 
-## Read-Only Inputs
+- **Visualizes Exported Clustered Data:** Loads [`clustered_startups_real_values.csv`](../clustered_startups_real_values.csv) to display the four primary startup clusters ($K=4$) identified in the academic analysis.
+- **Cluster 0 Subclustering View:** Loads [`cluster0_subclustered_explained.csv`](../cluster0_subclustered_explained.csv) to explore the three sub-profiles identified within early-stage startups ($K=3$).
+- **Sparsity & Zero-Inflation Panel:** Explains the "Zero Problem" in venture data, comparing zero-rates across funding categories and clarifying the feature engineering choices made in the notebooks.
+- **Interactive 2D PCA Scatter Plot:** Allows visual inspection of cluster distributions across the first two principal components.
+- **Cluster Profiles & Heatmaps:** Displays median financial profiles, funding ratios, and feature lift across segments.
+- **Searchable Startup Table:** Enables searching, sorting, and filtering individual startups by name, market sector, country, and cluster.
 
-The app reads these existing files at runtime:
+### What the Explorer Does Not Do
 
-- `../clustered_startups_real_values.csv`
-- `../cluster0_subclustered_explained.csv`
+- It **does not retrain** machine learning models or recalculate cluster assignments.
+- It **does not run Python** or require a backend server beyond standard static file hosting.
+- It **does not overwrite** or edit CSV files on disk.
 
-The implementation was informed by these existing read-only project files:
+---
 
-- `../teste.ipynb`
+## How to Run Locally
 
-## How To Run
+Because modern web browsers block asynchronous local file requests (`fetch` over `file:///`) due to CORS security policies, the application must be served over a local HTTP connection.
 
-From the repository root:
+From the **repository root directory**, run:
 
 ```powershell
-python -m http.server 8787 --bind 127.0.0.1
+python -m http.server 8000
 ```
 
-Then open:
+Then open your browser and navigate to:
 
 ```text
-http://127.0.0.1:8787/clustering-explorer/
+http://localhost:8000/clustering-explorer/
 ```
 
-If `python` is not available on PATH in this Codex workspace, the bundled
-runtime can be used:
+*(Note: If opened directly by double-clicking `index.html`, the browser may block automatic loading of the CSV files. The page includes a manual file picker fallback allowing you to select the CSV files manually from disk).*
 
-```powershell
-& "C:\Users\pedro\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe" -m http.server 8787 --bind 127.0.0.1
+---
+
+## Data Inputs
+
+The application reads the following exported project files at runtime:
+
+- `../clustered_startups_real_values.csv` (Primary four-cluster dataset)
+- `../cluster0_subclustered_explained.csv` (Cluster 0 subclustering dataset)
+
+---
+
+## Directory Structure
+
+```text
+clustering-explorer/
+├── index.html            # Application entry point and layout
+├── README.md             # Explorer documentation
+├── pca_clusters.png      # Reference 2D PCA figure
+├── src/                  # Application source modules
+│   ├── app.js            # Main controller and tab orchestration
+│   ├── data-loader.js    # CSV parsing and schema validation
+│   ├── analysis.js       # In-memory aggregations and statistics
+│   ├── charts.js         # Chart.js rendering wrappers
+│   ├── insights.js       # Curiosities and data summary generator
+│   └── styles.css        # Dashboard styling and layout
+└── vendor/               # Bundled third-party libraries (no CDN required)
+    ├── chart.umd.min.js  # Chart.js (v4.4.1)
+    └── papaparse.min.js  # PapaParse (v5.4.1)
 ```
-
-Opening `index.html` directly as a file may prevent the browser from fetching
-CSV files. The page includes a manual CSV upload fallback for that case.
-
-## Assumptions
-
-- `clustered_startups_real_values.csv` is the authoritative clustered output.
-- The original data source was a real Crunchbase dataset from Kaggle.
-- The existing `Cluster` column should be used directly and not recomputed.
-- The clustering method is inferred from `teste.ipynb` as K-Means with four
-  clusters and engineered funding features.
-- The PCA projection is for explanation and visualisation only. If exported
-  `PC1` and `PC2` columns exist, the app uses them; otherwise it computes a
-  read-only two-component browser projection from the engineered features. It
-  does not replace the original notebook model.
-- If a future CSV has no cluster labels, the app can create temporary fallback
-  K-Means labels in browser memory only. It does not write those labels back to
-  disk.
-
-## Files Created
-
-- `clustering-explorer/index.html`
-- `clustering-explorer/README.md`
-- `clustering-explorer/src/styles.css`
-- `clustering-explorer/src/data-loader.js`
-- `clustering-explorer/src/analysis.js`
-- `clustering-explorer/src/charts.js`
-- `clustering-explorer/src/insights.js`
-- `clustering-explorer/src/app.js`
-
-## Preservation Confirmation
-
-No existing project files are modified by this app. The app only reads existing
-CSV and notebook/script files and adds new files inside `clustering-explorer/`.
-
-Optional manual integration later could link to
-`clustering-explorer/index.html` from another app or README, but that would
-require editing existing files and was intentionally not done here.
